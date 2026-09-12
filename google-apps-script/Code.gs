@@ -1,192 +1,247 @@
-/**
- * Bound to the Campus Visitor Registration response spreadsheet.
- * Replace DASHBOARD_TOKEN with the same value used by Laravel's .env file.
- */
-// Set this value in Apps Script before deploying the web app.
 const DASHBOARD_TOKEN = 'REPLACE_WITH_GOOGLE_DASHBOARD_TOKEN';
-const DATABASE_SHEET = 'Visitor Database';
-const RESPONSE_SHEET = 'Form Responses 1';
-const PH_TIME_ZONE = 'Asia/Manila';
+const DATABASE_SHEET_NAME = 'Visitor Database';
+const MANILA_TIME_ZONE = 'Asia/Manila';
 
-function doGet(e) {
-  if (!isAuthorized_(e)) return json_({error: 'Unauthorized'}, 401);
+/** Returns dashboard data, or one visitor when visitor_id is supplied. */
+function doGet(request) {
+  if (!isAuthorized(request)) return jsonResponse({ error: 'Unauthorized' });
 
-  const sheet = SpreadsheetApp.getActive().getSheetByName(DATABASE_SHEET);
-  if (!sheet) return json_({error: `Missing sheet: ${DATABASE_SHEET}`}, 500);
-  removeValidUntilColumn_(sheet);
+  const sheet = getDatabaseSheet();
+  if (!sheet) return jsonResponse({ error: `Missing sheet: ${DATABASE_SHEET_NAME}` });
 
-  const values = sheet.getDataRange().getValues();
-  const headers = values.shift() || [];
-  const rows = values
-    .filter(row => row.some(value => value !== ''))
-    .map(row => rowToObject_(headers, row));
+  removeOldValidUntilColumn(sheet);
+  const visitors = readVisitors(sheet);
+  const requestedId = request.parameter && request.parameter.visitor_id;
 
-  if (e.parameter.visitor_id) {
-    const visitor = rows.find(item => normalizeVisitorId_(item['Visitor ID']) === normalizeVisitorId_(e.parameter.visitor_id));
-    if (!visitor) return json_({error: 'Visitor not found'}, 404);
-    return json_(withQr_(visitor));
+  if (requestedId) {
+    const visitor = findVisitor(visitors, requestedId);
+    return visitor
+      ? jsonResponse(addQrCode(visitor))
+      : jsonResponse({ error: 'Visitor not found' });
   }
 
-  const todayKey = Utilities.formatDate(new Date(), PH_TIME_ZONE, 'yyyy-MM-dd');
-  const todayRows = rows.filter(visitor => visitor['Check-in'] &&
-    Utilities.formatDate(new Date(visitor['Check-in']), PH_TIME_ZONE, 'yyyy-MM-dd') === todayKey);
-  const inside = todayRows.filter(visitor => String(visitor['Status']).toUpperCase() === 'INSIDE');
-  const accounted = inside.filter(visitor => String(visitor['Accounted'] || '').toUpperCase() === 'ACCOUNTED').length;
-
-  return json_({
-    registered: todayRows.length,
-    inside: inside.length,
-    checked_out: todayRows.filter(visitor => String(visitor['Status']).toUpperCase() === 'OUT').length,
-    accounted: accounted,
-    unaccounted: inside.length - accounted,
-    visitors: inside,
-    updated_at: new Date().toISOString()
-  });
+  return jsonResponse(buildDashboardSummary(visitors));
 }
 
-function doPost(e) {
-  if (!isAuthorized_(e)) return json_({error: 'Unauthorized'}, 401);
+/** Handles QR email, check-in, check-out, and accountability updates. */
+function doPost(request) {
+  if (!isAuthorized(request)) return jsonResponse({ error: 'Unauthorized' });
 
-  const body = JSON.parse(e.postData.contents || '{}');
+  const body = parseRequestBody(request);
+  if (!body) return jsonResponse({ error: 'Invalid request body' });
+  if (body.action === 'email') return sendVisitorPass(body);
 
-  if (body.action === 'email') {
-    if (!body.visitor_id || !body.email) return json_({error: 'Visitor ID and email are required'}, 400);
-    const sheet = SpreadsheetApp.getActive().getSheetByName(DATABASE_SHEET);
-    const values = sheet.getDataRange().getValues();
-    const headers = values.shift() || [];
-    const rows = values
-      .filter(row => row.some(value => value !== ''))
-      .map(row => rowToObject_(headers, row));
-    const visitor = rows.find(item => normalizeVisitorId_(item['Visitor ID']) === normalizeVisitorId_(body.visitor_id));
-    if (!visitor) return json_({error: 'Visitor not found'}, 404);
-
-    const pass = withQr_(visitor);
-    const recipient = normalizeEmail_(body.email);
-    if (!recipient) return json_({error: 'A valid recipient email is required'}, 400);
-    const subject = `Visitor QR Pass - ${pass['Visitor ID']}`;
-    const plainBody = `Hello ${pass.Name || 'Visitor'},\n\nYour temporary campus visitor pass is ready.\nVisitor ID: ${pass['Visitor ID']}\n\nPlease present the QR pass when checking in and checking out.`;
-    try {
-      const htmlBody = [
-        `<p>Hello ${escapeHtml_(pass.Name || 'Visitor')},</p>`,
-        '<p>Your temporary campus visitor pass is below.</p>',
-        `<p><strong>Visitor ID:</strong> ${escapeHtml_(pass['Visitor ID'])}</p>`,
-        `<p><img src="${pass.qr_url}" alt="Visitor QR code" width="220" height="220"></p>`,
-        `<p>If the image is blocked, open the QR code here: <a href="${pass.qr_url}">${pass.qr_url}</a></p>`,
-        '<p>Please present this QR code when checking in and checking out.</p>'
-      ].join('');
-      MailApp.sendEmail({to: recipient, subject: subject, body: plainBody + `\n\nQR code: ${pass.qr_url}`, htmlBody: htmlBody});
-    } catch (error) {
-      console.error(error);
-      return json_({error: `Email send failed: ${error.message}`}, 500);
-    }
-    return json_({ok: true, visitor_id: pass['Visitor ID'], email: recipient, sent_to: recipient});
-  }
-
-  if (!['checkin', 'checkout', 'accountability'].includes(body.action) || !body.visitor_id) {
-    return json_({error: 'Expected action=checkin, checkout, or accountability and visitor_id'}, 400);
-  }
-
-  const sheet = SpreadsheetApp.getActive().getSheetByName(DATABASE_SHEET);
-  removeValidUntilColumn_(sheet);
-  const values = sheet.getDataRange().getValues();
-  const headers = values.shift() || [];
-  const idColumn = headers.indexOf('Visitor ID');
-  const checkinColumn = headers.indexOf('Check-in');
-  const checkoutColumn = headers.indexOf('Check-out');
-  const statusColumn = headers.indexOf('Status');
-  const accountedColumn = ensureColumn_(sheet, headers, 'Accounted');
-  const rowIndex = values.findIndex(row =>
-    normalizeVisitorId_(row[idColumn]) === normalizeVisitorId_(body.visitor_id)
-  );
-
-  if (rowIndex < 0) return json_({error: 'Visitor not found'}, 404);
-
-  const sheetRow = rowIndex + 2;
-  if (body.action === 'accountability') {
-    const accountability = String(body.accountability || '').toUpperCase();
-    if (!['ACCOUNTED', 'UNACCOUNTED'].includes(accountability)) {
-      return json_({error: 'Accountability must be ACCOUNTED or UNACCOUNTED'}, 400);
-    }
-    sheet.getRange(sheetRow, accountedColumn).setValue(accountability);
-    return json_({
-      ok: true,
-      visitor_id: body.visitor_id,
-      accountability: accountability
+  const validActions = ['checkin', 'checkout', 'accountability'];
+  if (!validActions.includes(body.action) || !body.visitor_id) {
+    return jsonResponse({
+      error: 'Expected action=checkin, checkout, or accountability and visitor_id'
     });
   }
-  if (body.action === 'checkin') {
-    sheet.getRange(sheetRow, checkinColumn + 1).setValue(new Date());
-    sheet.getRange(sheetRow, checkoutColumn + 1).clearContent();
-    sheet.getRange(sheetRow, statusColumn + 1).setValue('INSIDE');
-    sheet.getRange(sheetRow, accountedColumn).setValue('UNACCOUNTED');
-    return json_({ok: true, visitor_id: body.visitor_id, status: 'INSIDE', recorded_at: new Date().toISOString()});
-  }
 
-  sheet.getRange(sheetRow, checkoutColumn + 1).setValue(new Date());
-  sheet.getRange(sheetRow, statusColumn + 1).setValue('OUT');
-  return json_({ok: true, visitor_id: body.visitor_id, status: 'OUT', recorded_at: new Date().toISOString()});
+  const sheet = getDatabaseSheet();
+  if (!sheet) return jsonResponse({ error: `Missing sheet: ${DATABASE_SHEET_NAME}` });
+
+  removeOldValidUntilColumn(sheet);
+  const table = readSheetTable(sheet);
+  const rowIndex = findVisitorRowIndex(table.rows, table.headers, body.visitor_id);
+  if (rowIndex < 0) return jsonResponse({ error: 'Visitor not found' });
+
+  const rowNumber = rowIndex + 2;
+  const columns = getColumnNumbers(table.headers, sheet);
+
+  if (body.action === 'accountability') {
+    return saveAccountability(sheet, rowNumber, columns.accounted, body);
+  }
+  if (body.action === 'checkin') {
+    return saveCheckIn(sheet, rowNumber, columns, body.visitor_id);
+  }
+  return saveCheckOut(sheet, rowNumber, columns, body.visitor_id);
 }
 
-function onFormSubmit(e) {
-  const database = SpreadsheetApp.getActive().getSheetByName(DATABASE_SHEET);
-  removeValidUntilColumn_(database);
-  const headers = database.getRange(1, 1, 1, database.getLastColumn()).getValues()[0];
-  ensureColumn_(database, headers, 'Accounted');
-  const row = e.values || [];
-  const existingIds = database.getLastRow() > 1
-    ? database
-      .getRange(2, 1, database.getLastRow() - 1, 1)
-      .getValues()
-      .flat()
-      .map(value => Number(String(value).replace(/^VIS-/i, '')) || 0)
-    : [];
-  const nextId = `VIS-${String(Math.max(...existingIds, 0) + 1).padStart(6, '0')}`;
-  const checkIn = row[0] || new Date();
+function sendVisitorPass(body) {
+  if (!body.visitor_id || !body.email) {
+    return jsonResponse({ error: 'Visitor ID and email are required' });
+  }
 
-  database.appendRow([
-    nextId,
-    row[1] || '',
-    row[2] || '',
-    row[3] || '',
-    row[4] || '',
-    row[5] || '',
-    row[6] || '',
-    checkIn,
+  const recipient = normalizeEmail(body.email);
+  if (!recipient) return jsonResponse({ error: 'A valid recipient email is required' });
+
+  const sheet = getDatabaseSheet();
+  if (!sheet) return jsonResponse({ error: `Missing sheet: ${DATABASE_SHEET_NAME}` });
+
+  const visitor = findVisitor(readVisitors(sheet), body.visitor_id);
+  if (!visitor) return jsonResponse({ error: 'Visitor not found' });
+
+  const pass = addQrCode(visitor);
+  const visitorId = pass['Visitor ID'];
+  const qrUrl = pass.qr_url;
+  const visitorName = pass.Name || 'Visitor';
+
+  const plainText = [
+    `Hello ${visitorName},`,
     '',
-    'INSIDE',
-    'UNACCOUNTED'
+    'Your temporary campus visitor pass is ready.',
+    `Visitor ID: ${visitorId}`,
+    '',
+    `QR code: ${qrUrl}`,
+    '',
+    'Please present this QR code when checking in and checking out.'
+  ].join('\n');
+
+  const html = [
+    `<p>Hello ${escapeHtml(visitorName)},</p>`,
+    '<p>Your temporary campus visitor pass is ready.</p>',
+    `<p><strong>Visitor ID:</strong> ${escapeHtml(visitorId)}</p>`,
+    `<p><img src="${qrUrl}" alt="Visitor QR code" width="220" height="220"></p>`,
+    `<p>If the image is blocked, open the QR code here: <a href="${qrUrl}">${qrUrl}</a></p>`,
+    '<p>Please present this QR code when checking in and checking out.</p>'
+  ].join('');
+
+  try {
+    MailApp.sendEmail({ to: recipient, subject: `Visitor QR Pass - ${visitorId}`, body: plainText, htmlBody: html });
+  } catch (error) {
+    console.error(error);
+    return jsonResponse({ error: `Email send failed: ${error.message}` });
+  }
+
+  return jsonResponse({ ok: true, visitor_id: visitorId, email: recipient, sent_to: recipient });
+}
+
+function saveAccountability(sheet, rowNumber, columnNumber, body) {
+  const value = String(body.accountability || '').toUpperCase();
+  if (!['ACCOUNTED', 'UNACCOUNTED'].includes(value)) {
+    return jsonResponse({ error: 'Accountability must be ACCOUNTED or UNACCOUNTED' });
+  }
+
+  sheet.getRange(rowNumber, columnNumber).setValue(value);
+  return jsonResponse({ ok: true, visitor_id: body.visitor_id, accountability: value });
+}
+
+function saveCheckIn(sheet, rowNumber, columns, visitorId) {
+  const recordedAt = new Date();
+  sheet.getRange(rowNumber, columns.checkIn).setValue(recordedAt);
+  sheet.getRange(rowNumber, columns.checkOut).clearContent();
+  sheet.getRange(rowNumber, columns.status).setValue('INSIDE');
+  sheet.getRange(rowNumber, columns.accounted).setValue('UNACCOUNTED');
+  return jsonResponse({ ok: true, visitor_id: visitorId, status: 'INSIDE', recorded_at: recordedAt.toISOString() });
+}
+
+function saveCheckOut(sheet, rowNumber, columns, visitorId) {
+  const recordedAt = new Date();
+  sheet.getRange(rowNumber, columns.checkOut).setValue(recordedAt);
+  sheet.getRange(rowNumber, columns.status).setValue('OUT');
+  return jsonResponse({ ok: true, visitor_id: visitorId, status: 'OUT', recorded_at: recordedAt.toISOString() });
+}
+
+function buildDashboardSummary(visitors) {
+  const today = Utilities.formatDate(new Date(), MANILA_TIME_ZONE, 'yyyy-MM-dd');
+  const todaysVisitors = visitors.filter(visitor => {
+    if (!visitor['Check-in']) return false;
+    return Utilities.formatDate(new Date(visitor['Check-in']), MANILA_TIME_ZONE, 'yyyy-MM-dd') === today;
+  });
+
+  const insideVisitors = todaysVisitors.filter(visitor => visitor.Status === 'INSIDE');
+  const accountedCount = insideVisitors.filter(visitor => visitor.Accounted === 'ACCOUNTED').length;
+
+  return {
+    registered: todaysVisitors.length,
+    inside: insideVisitors.length,
+    checked_out: todaysVisitors.filter(visitor => visitor.Status === 'OUT').length,
+    accounted: accountedCount,
+    unaccounted: insideVisitors.length - accountedCount,
+    visitors: insideVisitors,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function onFormSubmit(event) {
+  const sheet = getDatabaseSheet();
+  if (!sheet) return;
+
+  removeOldValidUntilColumn(sheet);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  ensureColumn(sheet, headers, 'Accounted');
+
+  const values = event.values || [];
+  const checkInTime = values[0] || new Date();
+  sheet.appendRow([
+    createNextVisitorId(sheet),
+    values[1] || '', values[2] || '', values[3] || '', values[4] || '',
+    values[5] || '', values[6] || '', checkInTime, '', 'INSIDE', 'UNACCOUNTED'
   ]);
 }
 
-function removeValidUntilColumn_(sheet) {
-  const lastColumn = sheet.getLastColumn();
-  if (!lastColumn) return;
-  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-  const validUntilColumn = headers.indexOf('Valid Until');
-  if (validUntilColumn >= 0) sheet.deleteColumn(validUntilColumn + 1);
-  sheet.getParent().setSpreadsheetTimeZone(PH_TIME_ZONE);
+function createNextVisitorId(sheet) {
+  if (sheet.getLastRow() < 2) return 'VIS-000001';
+
+  const ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().flat();
+  const numbers = ids.map(value => Number(String(value).replace(/^VIS-/i, '')) || 0);
+  return `VIS-${String(Math.max(...numbers, 0) + 1).padStart(6, '0')}`;
 }
 
-function ensureColumn_(sheet, headers, name) {
-  const existing = headers.indexOf(name);
-  if (existing >= 0) return existing + 1;
-  const column = headers.length + 1;
-  sheet.getRange(1, column).setValue(name);
-  return column;
+function getDatabaseSheet() {
+  return SpreadsheetApp.getActive().getSheetByName(DATABASE_SHEET_NAME);
 }
 
-function isAuthorized_(e) {
-  return e && e.parameter && e.parameter.token === DASHBOARD_TOKEN;
+function readVisitors(sheet) {
+  const table = readSheetTable(sheet);
+  return table.rows
+    .filter(row => row.some(value => value !== ''))
+    .map(row => convertRowToVisitor(table.headers, row));
 }
 
-function rowToObject_(headers, row) {
-  return headers.reduce((result, header, index) => {
-    result[header] = row[index] instanceof Date ? row[index].toISOString() : row[index];
-    return result;
+function readSheetTable(sheet) {
+  const values = sheet.getDataRange().getValues();
+  return { headers: values.shift() || [], rows: values };
+}
+
+function convertRowToVisitor(headers, row) {
+  return headers.reduce((visitor, header, index) => {
+    visitor[header] = row[index] instanceof Date ? row[index].toISOString() : row[index];
+    return visitor;
   }, {});
 }
 
-function withQr_(visitor) {
+function findVisitor(visitors, visitorId) {
+  const requestedId = normalizeVisitorId(visitorId);
+  return visitors.find(visitor => normalizeVisitorId(visitor['Visitor ID']) === requestedId);
+}
+
+function findVisitorRowIndex(rows, headers, visitorId) {
+  const idColumn = headers.indexOf('Visitor ID');
+  const requestedId = normalizeVisitorId(visitorId);
+  return rows.findIndex(row => normalizeVisitorId(row[idColumn]) === requestedId);
+}
+
+function getColumnNumbers(headers, sheet) {
+  return {
+    checkIn: headers.indexOf('Check-in') + 1,
+    checkOut: headers.indexOf('Check-out') + 1,
+    status: headers.indexOf('Status') + 1,
+    accounted: ensureColumn(sheet, headers, 'Accounted')
+  };
+}
+
+function removeOldValidUntilColumn(sheet) {
+  const lastColumn = sheet.getLastColumn();
+  if (!lastColumn) return;
+
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const oldColumn = headers.indexOf('Valid Until');
+  if (oldColumn >= 0) sheet.deleteColumn(oldColumn + 1);
+  sheet.getParent().setSpreadsheetTimeZone(MANILA_TIME_ZONE);
+}
+
+function ensureColumn(sheet, headers, columnName) {
+  const existingColumn = headers.indexOf(columnName);
+  if (existingColumn >= 0) return existingColumn + 1;
+
+  const newColumnNumber = headers.length + 1;
+  sheet.getRange(1, newColumnNumber).setValue(columnName);
+  return newColumnNumber;
+}
+
+function addQrCode(visitor) {
   const visitorId = String(visitor['Visitor ID'] || '');
   return Object.assign({}, visitor, {
     qr_value: visitorId,
@@ -194,30 +249,43 @@ function withQr_(visitor) {
   });
 }
 
-function normalizeVisitorId_(value) {
+function parseRequestBody(request) {
+  try {
+    return JSON.parse(request.postData.contents || '{}');
+  } catch (error) {
+    return null;
+  }
+}
+
+function isAuthorized(request) {
+  return request && request.parameter && request.parameter.token === DASHBOARD_TOKEN;
+}
+
+function normalizeVisitorId(value) {
   return String(value || '').trim().toUpperCase();
 }
 
-function normalizeEmail_(value) {
+function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function escapeHtml_(value) {
-  return String(value || '').replace(/[&<>\"]/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;'}[character]));
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>\"]/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;'
+  }[character]));
 }
 
-function json_(payload, status) {
+function jsonResponse(payload) {
   return ContentService.createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
 function installTrigger() {
   const spreadsheet = SpreadsheetApp.getActive();
-  ScriptApp.getProjectTriggers().forEach((trigger) => {
-    if (trigger.getHandlerFunction() === 'onFormSubmit') {
-      ScriptApp.deleteTrigger(trigger);
-    }
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'onFormSubmit') ScriptApp.deleteTrigger(trigger);
   });
+
   ScriptApp.newTrigger('onFormSubmit')
     .forSpreadsheet(spreadsheet)
     .onFormSubmit()
