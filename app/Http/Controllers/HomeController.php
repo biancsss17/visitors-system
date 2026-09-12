@@ -34,7 +34,8 @@ class HomeController extends Controller
         $cachedPayload = Cache::get('google.dashboard.payload');
         $cachedAt = Cache::get('google.dashboard.fetched_at');
         if (is_array($cachedPayload) && is_numeric($cachedAt) && (time() - (int) $cachedAt) < 30) {
-            return response()->json($cachedPayload);
+            return response()->json($cachedPayload)
+                ->header('Cache-Control', 'no-store, private');
         }
 
         try {
@@ -49,24 +50,27 @@ class HomeController extends Controller
             Cache::put('google.dashboard.payload', $payload, now()->addMinutes(5));
             Cache::put('google.dashboard.fetched_at', time(), now()->addMinutes(5));
 
-            return response()->json($payload, $response->getStatusCode());
+            return response()->json($payload, $response->getStatusCode())
+                ->header('Cache-Control', 'no-store, private');
         } catch (\Throwable $exception) {
             Log::error('Google Sheets dashboard request failed', ['message' => $exception->getMessage()]);
 
             $cachedPayload = Cache::get('google.dashboard.payload');
             if (is_array($cachedPayload)) {
                 $cachedPayload['sync_warning'] = 'Showing the last successful Google Sheets sync.';
-                return response()->json($cachedPayload);
+                return response()->json($cachedPayload)
+                    ->header('Cache-Control', 'no-store, private');
             }
 
-            return response()->json(['error' => 'Google Sheets dashboard is unavailable.'], 503);
+            return response()->json(['error' => 'Google Sheets dashboard is unavailable.'], 503)
+                ->header('Cache-Control', 'no-store, private');
         }
     }
 
     public function visitorStatus(Request $request)
     {
         $data = $request->validate([
-            'visitor_id' => ['required', 'string', 'max:100'],
+            'visitor_id' => ['required', 'string', 'regex:/^VIS-\d{6}$/i'],
             'action' => ['required', 'in:checkin,checkout,accountability'],
             'accountability' => ['nullable', 'in:ACCOUNTED,UNACCOUNTED', 'required_if:action,accountability'],
         ]);
@@ -89,7 +93,8 @@ class HomeController extends Controller
             Cache::forget('google.dashboard.payload');
             Cache::forget('google.dashboard.fetched_at');
 
-            return response()->json($payload, $response->getStatusCode());
+            return response()->json($payload, $response->getStatusCode())
+                ->header('Cache-Control', 'no-store, private');
         } catch (\Throwable $exception) {
             return response()->json(['error' => 'Google Sheets update is unavailable.'], 503);
         }
@@ -98,7 +103,7 @@ class HomeController extends Controller
     public function visitorPass(Request $request)
     {
         $data = $request->validate([
-            'visitor_id' => ['required', 'string', 'max:100'],
+            'visitor_id' => ['required', 'string', 'regex:/^VIS-\d{6}$/i'],
             'action' => ['required', 'in:lookup,email'],
             'email' => ['nullable', 'email', 'max:255', 'required_if:action,email'],
         ]);
@@ -133,7 +138,8 @@ class HomeController extends Controller
                 ], 502);
             }
 
-            return response()->json($payload, $response->getStatusCode());
+            return response()->json($payload, $response->getStatusCode())
+                ->header('Cache-Control', 'no-store, private');
         } catch (\Throwable $exception) {
             return response()->json(['error' => 'Google Sheets pass service is unavailable.'], 503);
         }

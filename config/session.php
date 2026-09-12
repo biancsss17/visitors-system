@@ -13,8 +13,8 @@ return [
     'cookie' => env('SESSION_COOKIE', 'laravel-session'),
     'path' => env('SESSION_PATH', '/'),
     'domain' => env('SESSION_DOMAIN'),
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    'secure' => env('SESSION_SECURE_COOKIE', false),
     'http_only' => true,
-    'same_site' => 'lax',
+    'same_site' => env('SESSION_SAME_SITE', 'lax'),
     'partitioned' => false,
 ];
