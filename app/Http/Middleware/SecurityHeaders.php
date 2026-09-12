@@ -29,7 +29,9 @@ class SecurityHeaders
             "font-src 'self' data:",
         ]));
 
-        if ($request->isSecure()) {
+        // Render terminates TLS at its proxy, so the container may not see the
+        // original HTTPS flag. Production traffic is HTTPS-only at the edge.
+        if ($request->isSecure() || app()->environment('production')) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
