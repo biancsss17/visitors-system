@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: visitors-system
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: GOOGLE_DASHBOARD_ENDPOINT
+        sync: false
+      - key: GOOGLE_DASHBOARD_TOKEN
+        sync: false
+      - key: GOOGLE_FORM_URL
+        sync: false
+      - key: GOOGLE_SHEETS_URL
+        sync: false
