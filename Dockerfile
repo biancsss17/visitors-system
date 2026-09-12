@@ -6,7 +6,7 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 COPY . .
-RUN composer dump-autoload --no-dev --optimize
+RUN composer dump-autoload --no-dev --optimize --no-scripts
 
 FROM php:8.3-apache
 
