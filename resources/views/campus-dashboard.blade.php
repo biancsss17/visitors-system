@@ -304,12 +304,11 @@
               <th class="px-3 py-2 font-bold">Company</th>
               <th class="px-3 py-2 font-bold">Location</th>
               <th class="px-3 py-2 font-bold">Check-in</th>
-              <th class="px-3 py-2 font-bold">Check-out</th>
               <th class="px-3 py-2 font-bold">Accountability</th>
             </tr>
           </thead>
           <tbody id="dashboard-inside-body" class="divide-y divide-slate-100 text-slate-700">
-            <tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">Connecting to Google Sheets…</td></tr>
+            <tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">Connecting to Google Sheets…</td></tr>
           </tbody>
         </table>
       </div>
@@ -510,7 +509,7 @@
       }[character]));
 
       const formatTime = value => value
-        ? new Date(value).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+        ? new Date(value).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})
         : '—';
 
       const isAccounted = visitor => String(visitor.Accounted || '').toUpperCase() === 'ACCOUNTED';
@@ -529,7 +528,6 @@
             <td class="px-3 py-2">${escapeHtml(visitor['Company/Organization'])}</td>
             <td class="px-3 py-2">${escapeHtml(visitor['Host/Location'])}</td>
             <td class="px-3 py-2">${formatTime(visitor['Check-in'])}</td>
-            <td class="px-3 py-2">${formatTime(visitor['Check-out'])}</td>
             <td class="px-3 py-2">
               <select data-accountability-id="${visitorId}" class="rounded-md border-slate-300 py-1 text-xs font-bold ${colorClass}">
                 <option value="UNACCOUNTED" ${selectedUnaccounted}>Unaccounted</option>
@@ -591,12 +589,12 @@
           document.querySelector('#banner-accounted').textContent = `${accounted} / ${inside}`;
           document.querySelector('#banner-unaccounted').textContent = unaccounted;
           const syncLabel = data.sync_warning ? 'Cached Google Sheets data' : 'Live Google Sheets sync';
-          document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString()}`;
+          document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})}`;
           document.querySelector('#dashboard-inside-heading').textContent = `Currently Inside (${data.inside ?? 0})`;
           document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
           document.querySelector('#dashboard-accounted-rate').textContent = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
           document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
-          document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString()}`;
+          document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString('en-PH', {hour12: true, timeZone: 'Asia/Manila'})}`;
           document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
           document.querySelector('#dashboard-more').textContent = visitors.length > 10 ? `... and ${visitors.length - 10} more visitors currently inside` : '';
         } catch (error) {

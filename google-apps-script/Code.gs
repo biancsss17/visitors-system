@@ -6,12 +6,14 @@
 const DASHBOARD_TOKEN = 'REPLACE_WITH_GOOGLE_DASHBOARD_TOKEN';
 const DATABASE_SHEET = 'Visitor Database';
 const RESPONSE_SHEET = 'Form Responses 1';
+const PH_TIME_ZONE = 'Asia/Manila';
 
 function doGet(e) {
   if (!isAuthorized_(e)) return json_({error: 'Unauthorized'}, 401);
 
   const sheet = SpreadsheetApp.getActive().getSheetByName(DATABASE_SHEET);
   if (!sheet) return json_({error: `Missing sheet: ${DATABASE_SHEET}`}, 500);
+  removeValidUntilColumn_(sheet);
 
   const values = sheet.getDataRange().getValues();
   const headers = values.shift() || [];
@@ -25,8 +27,9 @@ function doGet(e) {
     return json_(withQr_(visitor));
   }
 
-  const todayKey = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  const todayRows = rows.filter(visitor => String(visitor['Check-in'] || '').slice(0, 10) === todayKey);
+  const todayKey = Utilities.formatDate(new Date(), PH_TIME_ZONE, 'yyyy-MM-dd');
+  const todayRows = rows.filter(visitor => visitor['Check-in'] &&
+    Utilities.formatDate(new Date(visitor['Check-in']), PH_TIME_ZONE, 'yyyy-MM-dd') === todayKey);
   const inside = todayRows.filter(visitor => String(visitor['Status']).toUpperCase() === 'INSIDE');
   const accounted = inside.filter(visitor => String(visitor['Accounted'] || '').toUpperCase() === 'ACCOUNTED').length;
 
@@ -84,6 +87,7 @@ function doPost(e) {
   }
 
   const sheet = SpreadsheetApp.getActive().getSheetByName(DATABASE_SHEET);
+  removeValidUntilColumn_(sheet);
   const values = sheet.getDataRange().getValues();
   const headers = values.shift() || [];
   const idColumn = headers.indexOf('Visitor ID');
@@ -125,6 +129,7 @@ function doPost(e) {
 
 function onFormSubmit(e) {
   const database = SpreadsheetApp.getActive().getSheetByName(DATABASE_SHEET);
+  removeValidUntilColumn_(database);
   const headers = database.getRange(1, 1, 1, database.getLastColumn()).getValues()[0];
   ensureColumn_(database, headers, 'Accounted');
   const row = e.values || [];
@@ -137,8 +142,6 @@ function onFormSubmit(e) {
     : [];
   const nextId = `VIS-${String(Math.max(...existingIds, 0) + 1).padStart(6, '0')}`;
   const checkIn = row[0] || new Date();
-  const validUntil = new Date(checkIn);
-  validUntil.setDate(validUntil.getDate() + 7);
 
   database.appendRow([
     nextId,
@@ -151,9 +154,17 @@ function onFormSubmit(e) {
     checkIn,
     '',
     'INSIDE',
-    validUntil,
     'UNACCOUNTED'
   ]);
+}
+
+function removeValidUntilColumn_(sheet) {
+  const lastColumn = sheet.getLastColumn();
+  if (!lastColumn) return;
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const validUntilColumn = headers.indexOf('Valid Until');
+  if (validUntilColumn >= 0) sheet.deleteColumn(validUntilColumn + 1);
+  sheet.getParent().setSpreadsheetTimeZone(PH_TIME_ZONE);
 }
 
 function ensureColumn_(sheet, headers, name) {
