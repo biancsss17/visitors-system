@@ -426,7 +426,7 @@
         if (!visitorId) return;
         scannerStatus.textContent = `Recording ${scanAction === 'checkin' ? 'check-in' : 'check-out'} for ${visitorId}…`;
         try {
-          const response = await fetch('{{ url('/api/visitor-status') }}', {
+          const response = await fetch('/api/visitor-status', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: visitorId, action: scanAction})
@@ -500,7 +500,7 @@
       document.querySelector('#close-qr-scanner')?.addEventListener('click', stopScanner);
       document.querySelector('#exit-qr-scanner')?.addEventListener('click', stopScanner);
 
-      const dashboardEndpoint = @json(url('/api/dashboard'));
+      const dashboardEndpoint = '/api/dashboard';
       const escapeHtml = value => String(value ?? '').replace(/[&<>'\"]/g, character => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -624,7 +624,7 @@
 
         selector.disabled = true;
         try {
-          const response = await fetch('{{ url('/api/visitor-status') }}', {
+          const response = await fetch('/api/visitor-status', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: selector.dataset.accountabilityId, action: 'accountability', accountability: selector.value})
@@ -675,7 +675,7 @@
         passStatus.textContent = 'Loading visitor from Google Sheets…';
         passPreview.classList.add('hidden');
         try {
-          const response = await fetch('{{ url('/api/visitor-pass') }}', {
+          const response = await fetch('/api/visitor-pass', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: visitorId, action: 'lookup'})
@@ -717,7 +717,7 @@
         if (!selectedPass || !email) return showMessage('Enter the visitor email address first.');
         passStatus.textContent = 'Sending QR pass…';
         try {
-          const response = await fetch('{{ url('/api/visitor-pass') }}', {
+          const response = await fetch('/api/visitor-pass', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: selectedPass['Visitor ID'], action: 'email', email})
