@@ -9,5 +9,6 @@
 /storage/framework/views/*
 /storage/logs/*
 /public/storage
+/bootstrap/cache/*.php
 /.runtime/
 /server.*.log
