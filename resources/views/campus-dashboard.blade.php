@@ -304,11 +304,12 @@
               <th class="px-3 py-2 font-bold">Company</th>
               <th class="px-3 py-2 font-bold">Location</th>
               <th class="px-3 py-2 font-bold">Check-in</th>
+              <th class="px-3 py-2 font-bold">Check-out</th>
               <th class="px-3 py-2 font-bold">Accountability</th>
             </tr>
           </thead>
           <tbody id="dashboard-inside-body" class="divide-y divide-slate-100 text-slate-700">
-            <tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">Connecting to Google Sheets…</td></tr>
+            <tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">Connecting to Google Sheets…</td></tr>
           </tbody>
         </table>
       </div>
@@ -521,13 +522,17 @@
         const selectedUnaccounted = accounted ? '' : 'selected';
         const colorClass = accounted ? 'text-emerald-700' : 'text-rose-700';
 
+        const checkedOut = String(visitor.Status || '').toUpperCase() === 'OUT';
+        const rowClass = checkedOut ? 'bg-slate-50 text-slate-500' : '';
+
         return `
-          <tr>
+          <tr class="${rowClass}">
             <td class="px-3 py-2 font-mono">${visitorId}</td>
             <td class="px-3 py-2 font-semibold">${escapeHtml(visitor.Name)}</td>
             <td class="px-3 py-2">${escapeHtml(visitor['Company/Organization'])}</td>
             <td class="px-3 py-2">${escapeHtml(visitor['Host/Location'])}</td>
             <td class="px-3 py-2">${formatTime(visitor['Check-in'])}</td>
+            <td class="px-3 py-2">${formatTime(visitor['Check-out'])}</td>
             <td class="px-3 py-2">
               <select data-accountability-id="${visitorId}" class="rounded-md border-slate-300 py-1 text-xs font-bold ${colorClass}">
                 <option value="UNACCOUNTED" ${selectedUnaccounted}>Unaccounted</option>
@@ -539,7 +544,7 @@
 
       const renderVisitorTable = visitors => visitors.length
         ? visitors.slice(0, 10).map(renderVisitorRow).join('')
-        : '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">No visitors currently inside.</td></tr>';
+        : '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">No visitors registered today.</td></tr>';
 
       let latestDashboardData = null;
 
@@ -590,13 +595,13 @@
           document.querySelector('#banner-unaccounted').textContent = unaccounted;
           const syncLabel = data.sync_warning ? 'Cached Google Sheets data' : 'Live Google Sheets sync';
           document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})}`;
-          document.querySelector('#dashboard-inside-heading').textContent = `Currently Inside (${data.inside ?? 0})`;
+          document.querySelector('#dashboard-inside-heading').textContent = `Today’s Visitors (${visitors.length})`;
           document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
           document.querySelector('#dashboard-accounted-rate').textContent = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
           document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
           document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString('en-PH', {hour12: true, timeZone: 'Asia/Manila'})}`;
           document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
-          document.querySelector('#dashboard-more').textContent = visitors.length > 10 ? `... and ${visitors.length - 10} more visitors currently inside` : '';
+          document.querySelector('#dashboard-more').textContent = visitors.length > 10 ? `... and ${visitors.length - 10} more visitors today` : '';
         } catch (error) {
           if (error.name === 'AbortError') return;
           document.querySelector('#dashboard-updated-at').textContent = 'Google Sheets sync unavailable';
@@ -737,7 +742,7 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) refreshEmergencyDashboard();
       });
-      window.setInterval(refreshEmergencyDashboard, 30000);
+      window.setInterval(refreshEmergencyDashboard, 10000);
     });
   </script>
 <!-- END: InteractiveScripts -->

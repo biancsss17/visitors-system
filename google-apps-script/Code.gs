@@ -149,7 +149,9 @@ function buildDashboardSummary(visitors) {
     checked_out: todaysVisitors.filter(visitor => visitor.Status === 'OUT').length,
     accounted: accountedCount,
     unaccounted: insideVisitors.length - accountedCount,
-    visitors: insideVisitors,
+    // Keep today's checked-out records visible on the website. The sheet is the
+    // permanent record; the website only changes its daily view.
+    visitors: todaysVisitors,
     updated_at: new Date().toISOString()
   };
 }
@@ -227,7 +229,9 @@ function removeOldValidUntilColumn(sheet) {
   if (!lastColumn) return;
 
   const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-  const oldColumn = headers.indexOf('Valid Until');
+  const oldColumn = headers.findIndex(header =>
+    String(header).trim().toLowerCase() === 'valid until'
+  );
   if (oldColumn >= 0) sheet.deleteColumn(oldColumn + 1);
   sheet.getParent().setSpreadsheetTimeZone(MANILA_TIME_ZONE);
 }
