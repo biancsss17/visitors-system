@@ -209,7 +209,7 @@
 <span id="summary-registered" class="text-xl font-bold text-sky-800 my-0.5">—</span>
 <span class="text-[9px] text-slate-400 font-medium">All Today</span>
 </div>
-<!-- Currently Inside -->
+<!-- Today's visitor records -->
 <div class="bg-white rounded-xl p-2.5 shadow-sm border-2 border-emerald-500/50 bg-emerald-50/20 text-center flex flex-col justify-between">
 <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-tighter line-clamp-1">Inside</span>
 <span id="summary-inside" class="text-xl font-black text-emerald-600 my-0.5">—</span>
@@ -293,7 +293,7 @@
   <div class="grid grid-cols-1 gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_220px]">
     <div class="overflow-hidden rounded-lg border border-slate-200">
       <div class="border-b border-slate-200 bg-slate-50 px-3 py-2">
-        <h3 id="dashboard-inside-heading" class="text-xs font-black uppercase tracking-wider text-slate-700">Currently Inside</h3>
+        <h3 id="dashboard-inside-heading" class="text-xs font-black uppercase tracking-wider text-slate-700">Today's Visitors</h3>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full text-left text-[11px]">

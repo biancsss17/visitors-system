@@ -33,7 +33,7 @@ class HomeController extends Controller
 
         $cachedPayload = Cache::get('google.dashboard.payload');
         $cachedAt = Cache::get('google.dashboard.fetched_at');
-        if (is_array($cachedPayload) && is_numeric($cachedAt) && (time() - (int) $cachedAt) < 30) {
+        if (is_array($cachedPayload) && is_numeric($cachedAt) && (time() - (int) $cachedAt) < 5) {
             return response()->json($cachedPayload)
                 ->header('Cache-Control', 'no-store, private');
         }
