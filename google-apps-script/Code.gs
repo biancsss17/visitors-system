@@ -144,7 +144,9 @@ function buildDashboardSummary(visitors) {
   const accountedCount = insideVisitors.filter(visitor => visitor.Accounted === 'ACCOUNTED').length;
 
   return {
-    registered: todaysVisitors.length,
+    // Registered is the permanent total. The daily list below remains limited
+    // to today's activity for the emergency dashboard.
+    registered: visitors.length,
     inside: insideVisitors.length,
     checked_out: todaysVisitors.filter(visitor => visitor.Status === 'OUT').length,
     accounted: accountedCount,

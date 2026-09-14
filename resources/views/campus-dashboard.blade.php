@@ -207,7 +207,6 @@
 <div class="bg-white rounded-xl p-2.5 shadow-sm border border-slate-200 text-center flex flex-col justify-between">
 <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-tighter line-clamp-1">Registered</span>
 <span id="summary-registered" class="text-xl font-bold text-sky-800 my-0.5">—</span>
-<span class="text-[9px] text-slate-400 font-medium">All Today</span>
 </div>
 <!-- Today's visitor records -->
 <div class="bg-white rounded-xl p-2.5 shadow-sm border-2 border-emerald-500/50 bg-emerald-50/20 text-center flex flex-col justify-between">
