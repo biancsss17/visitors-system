@@ -275,21 +275,6 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-1 gap-2 border-b border-slate-200 bg-slate-50 p-3 sm:grid-cols-3">
-    <div class="rounded-lg border border-sky-200 bg-sky-50 p-3 text-center">
-      <span class="block text-[10px] font-bold uppercase text-sky-800">Total Visitors Registered</span>
-      <strong id="dashboard-registered" class="mt-1 block text-2xl font-black text-sky-700">—</strong>
-    </div>
-    <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center">
-      <span class="block text-[10px] font-bold uppercase text-emerald-800">Currently Inside</span>
-      <strong id="dashboard-inside" class="mt-1 block text-2xl font-black text-emerald-600">—</strong>
-    </div>
-    <div class="rounded-lg border border-slate-200 bg-white p-3 text-center">
-      <span class="block text-[10px] font-bold uppercase text-slate-600">Checked Out</span>
-      <strong id="dashboard-checked-out" class="mt-1 block text-2xl font-black text-slate-700">—</strong>
-    </div>
-  </div>
-
   <div class="grid grid-cols-1 gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_220px]">
     <div class="overflow-hidden rounded-lg border border-slate-200">
       <div class="border-b border-slate-200 bg-slate-50 px-3 py-2">
@@ -576,9 +561,6 @@
           const data = await response.json();
           latestDashboardData = data;
           const visitors = Array.isArray(data.visitors) ? data.visitors : [];
-          document.querySelector('#dashboard-registered').textContent = data.registered ?? 0;
-          document.querySelector('#dashboard-inside').textContent = data.inside ?? 0;
-          document.querySelector('#dashboard-checked-out').textContent = data.checked_out ?? 0;
           const registered = Number(data.registered ?? 0);
           const inside = Number(data.inside ?? 0);
           const checkedOut = Number(data.checked_out ?? 0);
