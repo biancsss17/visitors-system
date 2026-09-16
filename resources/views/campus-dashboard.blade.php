@@ -183,21 +183,6 @@
 <p id="banner-sync-status" class="text-[10px] text-rose-100">Connecting to Google Sheets…</p>
 </div>
 </div>
-<!-- Evacuation metrics quick visual -->
-<div class="mt-3 bg-red-900/40 rounded-lg p-2.5 backdrop-blur-sm border border-red-400/30 flex items-center justify-between">
-<div class="text-center px-2 border-r border-red-400/30 flex-1">
-<span class="text-[10px] uppercase font-bold text-red-200 block">Total Inside</span>
-<span id="banner-total-inside" class="text-lg font-black text-white leading-tight">—</span>
-</div>
-<div class="text-center px-2 border-r border-red-400/30 flex-1">
-<span class="text-[10px] uppercase font-bold text-emerald-200 block">Accounted</span>
-<span id="banner-accounted" class="text-lg font-black text-emerald-300 leading-tight">— / —</span>
-</div>
-<div class="text-center px-2 flex-1">
-<span class="text-[10px] uppercase font-bold text-red-200 block">Unaccounted</span>
-<span id="banner-unaccounted" class="text-lg font-black text-yellow-300 leading-tight">—</span>
-</div>
-</div>
 </section>
 <!-- END: EmergencyEvacuationBanner -->
 <!-- BEGIN: KeyMetricsBar -->
