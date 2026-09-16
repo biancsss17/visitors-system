@@ -216,7 +216,7 @@
 <!-- BEGIN: PrimaryActionWorkflows -->
 <section class="space-y-2" data-purpose="primary-quick-actions">
 <div class="flex items-center justify-between px-0.5">
-<h3 class="text-xs font-bold tracking-wider text-slate-500 uppercase">Security Actions</h3>
+<h3 class="text-sm font-bold tracking-wider text-slate-500 uppercase">Security Actions</h3>
 </div>
 <div class="grid grid-cols-3 gap-2.5">
 <a href="{{ config('services.google.form_url', '#') }}" target="_blank" rel="noreferrer" data-google-form="{{ config('services.google.form_url', '#') }}" class="bg-campus-navy active:bg-slate-900 text-white p-3 rounded-xl shadow-sm flex flex-col items-center justify-center text-center group transition-transform active:scale-95">
