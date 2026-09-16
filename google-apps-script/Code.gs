@@ -9,7 +9,6 @@ function doGet(request) {
   const sheet = getDatabaseSheet();
   if (!sheet) return jsonResponse({ error: `Missing sheet: ${DATABASE_SHEET_NAME}` });
 
-  removeOldValidUntilColumn(sheet);
   const visitors = readVisitors(sheet);
   const requestedId = request.parameter && request.parameter.visitor_id;
 
@@ -41,7 +40,6 @@ function doPost(request) {
   const sheet = getDatabaseSheet();
   if (!sheet) return jsonResponse({ error: `Missing sheet: ${DATABASE_SHEET_NAME}` });
 
-  removeOldValidUntilColumn(sheet);
   const table = readSheetTable(sheet);
   const rowIndex = findVisitorRowIndex(table.rows, table.headers, body.visitor_id);
   if (rowIndex < 0) return jsonResponse({ error: 'Visitor not found' });
@@ -235,7 +233,6 @@ function removeOldValidUntilColumn(sheet) {
     String(header).trim().toLowerCase() === 'valid until'
   );
   if (oldColumn >= 0) sheet.deleteColumn(oldColumn + 1);
-  sheet.getParent().setSpreadsheetTimeZone(MANILA_TIME_ZONE);
 }
 
 function ensureColumn(sheet, headers, columnName) {
@@ -284,6 +281,15 @@ function escapeHtml(value) {
 function jsonResponse(payload) {
   return ContentService.createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function setupDatabase() {
+  const sheet = getDatabaseSheet();
+  if (!sheet) throw new Error(`Missing sheet: ${DATABASE_SHEET_NAME}`);
+
+  removeOldValidUntilColumn(sheet);
+  sheet.getParent().setSpreadsheetTimeZone(MANILA_TIME_ZONE);
+  ensureColumn(sheet, sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0], 'Accounted');
 }
 
 function installTrigger() {
