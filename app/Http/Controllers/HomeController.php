@@ -151,7 +151,7 @@ class HomeController extends Controller
             'handler' => \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\StreamHandler()),
             'allow_redirects' => true,
             'connect_timeout' => 8,
-            'timeout' => 45,
+            'timeout' => 0,
         ]);
     }
 }
