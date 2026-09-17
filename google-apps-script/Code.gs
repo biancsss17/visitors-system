@@ -140,5 +140,5 @@ function readVisitors() {
 function readVisits() {
   return readTable(getSheet(VISIT_LOGS_SHEET_NAME)).rows
     .filter(r => /^VISIT-\d{6}$/i.test(String(r[0] || '').trim()) && /^VIS-\d{6}$/i.test(String(r[1] || '').trim()))
-    .map(r => rowObject(VISITOR_HEADERS, r));
+    .map(r => rowObject(VISIT_HEADERS, r));
 }
