@@ -187,36 +187,29 @@
 <p id="banner-sync-status" class="text-[10px] text-rose-100">Connecting to Google Sheets…</p>
 </div>
 </div>
+<div class="relative z-10 mt-3 grid grid-cols-4 gap-2 border-t border-white/20 pt-3" data-purpose="metrics-summary-bar">
+<div class="rounded-lg bg-white/10 px-2 py-2 text-center ring-1 ring-white/20">
+<span class="block text-[10px] font-semibold uppercase tracking-wide text-rose-100">Registered</span>
+<span id="summary-registered" class="mt-0.5 block text-3xl font-black leading-none text-white">—</span>
+</div>
+<div class="rounded-lg bg-emerald-500/20 px-2 py-2 text-center ring-1 ring-emerald-200/60">
+<span class="block text-[10px] font-bold uppercase tracking-wide text-white">Inside</span>
+<span id="summary-inside" class="mt-0.5 block text-3xl font-black leading-none text-white">—</span>
+<span class="block text-[9px] font-semibold text-emerald-100">On Campus</span>
+</div>
+<div class="rounded-lg bg-white/10 px-2 py-2 text-center ring-1 ring-white/20">
+<span class="block text-[10px] font-semibold uppercase tracking-wide text-rose-100">Exited</span>
+<span id="summary-checked-out" class="mt-0.5 block text-3xl font-black leading-none text-white">—</span>
+<span class="block text-[9px] font-medium text-rose-100">Status: OUT</span>
+</div>
+<div class="rounded-lg bg-white/10 px-2 py-2 text-center ring-1 ring-white/20">
+<span class="block text-[10px] font-semibold uppercase tracking-wide text-rose-100">Safety Rate</span>
+<span id="summary-safety-rate" class="mt-0.5 block text-3xl font-black leading-none text-white">—%</span>
+<span id="summary-safety-detail" class="block text-[9px] font-bold text-emerald-100">—/— Safe</span>
+</div>
+</div>
 </section>
 <!-- END: EmergencyEvacuationBanner -->
-<!-- BEGIN: KeyMetricsBar -->
-<!-- 4-Tile Live Counter -->
-<section class="grid grid-cols-4 gap-2" data-purpose="metrics-summary-bar">
-<!-- Total Visitors Registered -->
-<div class="bg-white rounded-xl p-2.5 shadow-sm border border-slate-200 text-center flex flex-col justify-between">
-<span class="text-[10px] font-semibold text-slate-500 uppercase tracking-tighter line-clamp-1">Registered</span>
-<span id="summary-registered" class="text-xl font-bold text-sky-800 my-0.5">—</span>
-</div>
-<!-- Today's visitor records -->
-<div class="bg-white rounded-xl p-2.5 shadow-sm border-2 border-emerald-500/50 bg-emerald-50/20 text-center flex flex-col justify-between">
-<span class="text-[10px] font-bold text-emerald-800 uppercase tracking-tighter line-clamp-1">Inside</span>
-<span id="summary-inside" class="text-xl font-black text-emerald-600 my-0.5">—</span>
-<span class="text-[9px] text-emerald-600 font-semibold">On Campus</span>
-</div>
-<!-- Checked Out -->
-<div class="bg-white rounded-xl p-2.5 shadow-sm border border-slate-200 text-center flex flex-col justify-between">
-<span class="text-[10px] font-semibold text-slate-500 uppercase tracking-tighter line-clamp-1">Exited</span>
-<span id="summary-checked-out" class="text-xl font-bold text-slate-700 my-0.5">—</span>
-<span class="text-[9px] text-rose-500 font-medium">Status: OUT</span>
-</div>
-<!-- Accountability % -->
-<div class="bg-white rounded-xl p-2.5 shadow-sm border border-slate-200 text-center flex flex-col justify-between">
-<span class="text-[10px] font-semibold text-slate-500 uppercase tracking-tighter line-clamp-1">Safety Rate</span>
-<span id="summary-safety-rate" class="text-xl font-extrabold text-blue-600 my-0.5">—%</span>
-<span id="summary-safety-detail" class="text-[9px] text-emerald-600 font-bold">—/— Safe</span>
-</div>
-</section>
-<!-- END: KeyMetricsBar -->
 <!-- BEGIN: PrimaryActionWorkflows -->
 <section class="space-y-2" data-purpose="primary-quick-actions">
 <div class="flex items-center justify-between px-0.5">
