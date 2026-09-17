@@ -148,10 +148,6 @@
         <img id="visitor-pass-qr" class="mx-auto h-48 w-48 rounded-lg bg-white p-2" alt="Visitor QR code">
         <p id="visitor-pass-name" class="mt-3 text-sm font-black text-campus-navy"></p>
         <p id="visitor-pass-id" class="font-mono text-xs text-slate-500"></p>
-        <div class="mt-3 text-left">
-          <h3 class="text-xs font-black uppercase tracking-wider text-slate-700">Visit History</h3>
-          <div id="visitor-visit-history" class="mt-1 max-h-40 overflow-auto text-xs text-slate-600"></div>
-        </div>
         <div class="mt-4 grid grid-cols-2 gap-2">
           <button id="print-visitor-pass" class="rounded-lg bg-campus-navy px-3 py-2 text-xs font-bold text-white" type="button">Print Pass</button>
           <button id="email-visitor-pass" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white" type="button">Email Pass</button>
@@ -172,7 +168,7 @@
 <main class="w-full max-w-none px-4 py-6 sm:px-6 lg:px-8 space-y-5">
 <!-- BEGIN: EmergencyEvacuationBanner -->
 <!-- Emergency Evacuation & Fire Drill Alert Card -->
-<section class="emergency-glow bg-gradient-to-r from-red-600 via-rose-600 to-red-700 rounded-xl p-3.5 text-white shadow-lg relative overflow-hidden" data-purpose="evacuation-banner" data-format="legacy-fire-drill-accountability">
+<section class="emergency-glow bg-gradient-to-r from-red-600 via-rose-600 to-red-700 rounded-xl p-3.5 text-white shadow-lg relative overflow-hidden" data-purpose="evacuation-banner">
 <div class="absolute -right-6 -bottom-6 opacity-15 pointer-events-none">
 <svg class="w-32 h-32 text-white fill-current" viewbox="0 0 24 24">
 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path>
@@ -187,6 +183,21 @@
 <p id="banner-sync-status" class="text-[10px] text-rose-100">Connecting to Google Sheets…</p>
 </div>
 </div>
+<!-- Evacuation metrics quick visual -->
+<div class="mt-3 bg-red-900/40 rounded-lg p-2.5 backdrop-blur-sm border border-red-400/30 flex items-center justify-between">
+<div class="text-center px-2 border-r border-red-400/30 flex-1">
+<span class="text-[10px] uppercase font-bold text-red-200 block">Total Inside</span>
+<span id="banner-total-inside" class="text-lg font-black text-white leading-tight">—</span>
+</div>
+<div class="text-center px-2 border-r border-red-400/30 flex-1">
+<span class="text-[10px] uppercase font-bold text-emerald-200 block">Accounted</span>
+<span id="banner-accounted" class="text-lg font-black text-emerald-300 leading-tight">— / —</span>
+</div>
+<div class="text-center px-2 flex-1">
+<span class="text-[10px] uppercase font-bold text-red-200 block">Unaccounted</span>
+<span id="banner-unaccounted" class="text-lg font-black text-yellow-300 leading-tight">—</span>
+</div>
+</div>
 </section>
 <!-- END: EmergencyEvacuationBanner -->
 <!-- BEGIN: KeyMetricsBar -->
@@ -196,8 +207,9 @@
 <div class="bg-white rounded-xl p-2.5 shadow-sm border border-slate-200 text-center flex flex-col justify-between">
 <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-tighter line-clamp-1">Registered</span>
 <span id="summary-registered" class="text-xl font-bold text-sky-800 my-0.5">—</span>
+<span class="text-[9px] text-slate-400 font-medium">All Today</span>
 </div>
-<!-- Today's visitor records -->
+<!-- Currently Inside -->
 <div class="bg-white rounded-xl p-2.5 shadow-sm border-2 border-emerald-500/50 bg-emerald-50/20 text-center flex flex-col justify-between">
 <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-tighter line-clamp-1">Inside</span>
 <span id="summary-inside" class="text-xl font-black text-emerald-600 my-0.5">—</span>
@@ -220,7 +232,7 @@
 <!-- BEGIN: PrimaryActionWorkflows -->
 <section class="space-y-2" data-purpose="primary-quick-actions">
 <div class="flex items-center justify-between px-0.5">
-<h3 class="text-sm font-bold tracking-wider text-slate-500 uppercase">Security Actions</h3>
+<h3 class="text-xs font-bold tracking-wider text-slate-500 uppercase">Security Actions</h3>
 </div>
 <div class="grid grid-cols-3 gap-2.5">
 <a href="{{ config('services.google.form_url', '#') }}" target="_blank" rel="noreferrer" data-google-form="{{ config('services.google.form_url', '#') }}" class="bg-campus-navy active:bg-slate-900 text-white p-3 rounded-xl shadow-sm flex flex-col items-center justify-center text-center group transition-transform active:scale-95">
@@ -263,10 +275,25 @@
     </div>
   </div>
 
+  <div class="grid grid-cols-1 gap-2 border-b border-slate-200 bg-slate-50 p-3 sm:grid-cols-3">
+    <div class="rounded-lg border border-sky-200 bg-sky-50 p-3 text-center">
+      <span class="block text-[10px] font-bold uppercase text-sky-800">Total Visitors Registered</span>
+      <strong id="dashboard-registered" class="mt-1 block text-2xl font-black text-sky-700">—</strong>
+    </div>
+    <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center">
+      <span class="block text-[10px] font-bold uppercase text-emerald-800">Currently Inside</span>
+      <strong id="dashboard-inside" class="mt-1 block text-2xl font-black text-emerald-600">—</strong>
+    </div>
+    <div class="rounded-lg border border-slate-200 bg-white p-3 text-center">
+      <span class="block text-[10px] font-bold uppercase text-slate-600">Checked Out</span>
+      <strong id="dashboard-checked-out" class="mt-1 block text-2xl font-black text-slate-700">—</strong>
+    </div>
+  </div>
+
   <div class="grid grid-cols-1 gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_220px]">
     <div class="overflow-hidden rounded-lg border border-slate-200">
       <div class="border-b border-slate-200 bg-slate-50 px-3 py-2">
-        <h3 id="dashboard-inside-heading" class="text-xs font-black uppercase tracking-wider text-slate-700">Today's Visitors</h3>
+        <h3 id="dashboard-inside-heading" class="text-xs font-black uppercase tracking-wider text-slate-700">Currently Inside</h3>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full text-left text-[11px]">
@@ -397,18 +424,16 @@
         const match = String(rawValue).match(/VIS-\d+/i);
         const visitorId = match ? match[0].toUpperCase() : String(rawValue).trim();
         if (!visitorId) return;
-        stopScanner();
-        scanSubmitting = true;
-        showMessage(`✓ ${visitorId} QR captured. Saving status…`);
         scannerStatus.textContent = `Recording ${scanAction === 'checkin' ? 'check-in' : 'check-out'} for ${visitorId}…`;
         try {
-          const response = await fetch('/api/visitor-status', {
+          const response = await fetch('{{ url('/api/visitor-status') }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: visitorId, action: scanAction})
           });
           const data = await response.json();
           if (!response.ok || !data.ok) throw new Error(data.error || 'Google Sheets did not confirm the update.');
+          stopScanner();
           const actionLabel = scanAction === 'checkin' ? 'checked in' : 'checked out';
           showMessage(`✓ ${visitorId} ${actionLabel} successfully. Google Sheets was updated.`);
           await refreshEmergencyDashboard();
@@ -454,7 +479,7 @@
         }
         try {
           barcodeDetector = 'BarcodeDetector' in window ? new BarcodeDetector({formats: ['qr_code']}) : null;
-          cameraStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 640}, height: {ideal: 480}}, audio: false});
+          cameraStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}}, audio: false});
           camera.srcObject = cameraStream;
           await camera.play();
           scanFrameLoop();
@@ -475,7 +500,7 @@
       document.querySelector('#close-qr-scanner')?.addEventListener('click', stopScanner);
       document.querySelector('#exit-qr-scanner')?.addEventListener('click', stopScanner);
 
-      const dashboardEndpoint = '/api/dashboard';
+      const dashboardEndpoint = @json(url('/api/dashboard'));
       const escapeHtml = value => String(value ?? '').replace(/[&<>'\"]/g, character => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -485,7 +510,7 @@
       }[character]));
 
       const formatTime = value => value
-        ? new Date(value).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})
+        ? new Date(value).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
         : '—';
 
       const isAccounted = visitor => String(visitor.Accounted || '').toUpperCase() === 'ACCOUNTED';
@@ -497,11 +522,8 @@
         const selectedUnaccounted = accounted ? '' : 'selected';
         const colorClass = accounted ? 'text-emerald-700' : 'text-rose-700';
 
-        const checkedOut = String(visitor.Status || '').toUpperCase() === 'OUT';
-        const rowClass = checkedOut ? 'bg-slate-50 text-slate-500' : '';
-
         return `
-          <tr class="${rowClass}">
+          <tr>
             <td class="px-3 py-2 font-mono">${visitorId}</td>
             <td class="px-3 py-2 font-semibold">${escapeHtml(visitor.Name)}</td>
             <td class="px-3 py-2">${escapeHtml(visitor['Company/Organization'])}</td>
@@ -509,7 +531,7 @@
             <td class="px-3 py-2">${formatTime(visitor['Check-in'])}</td>
             <td class="px-3 py-2">${formatTime(visitor['Check-out'])}</td>
             <td class="px-3 py-2">
-              <select data-accountability-id="${visitorId}" ${checkedOut ? 'disabled' : ''} class="rounded-md border-slate-300 py-1 text-xs font-bold ${colorClass} ${checkedOut ? 'cursor-not-allowed opacity-60' : ''}">
+              <select data-accountability-id="${visitorId}" class="rounded-md border-slate-300 py-1 text-xs font-bold ${colorClass}">
                 <option value="UNACCOUNTED" ${selectedUnaccounted}>Unaccounted</option>
                 <option value="ACCOUNTED" ${selectedAccounted}>Accounted</option>
               </select>
@@ -519,10 +541,9 @@
 
       const renderVisitorTable = visitors => visitors.length
         ? visitors.slice(0, 10).map(renderVisitorRow).join('')
-        : '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">No visitors registered today.</td></tr>';
+        : '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">No visitors currently inside.</td></tr>';
 
       let latestDashboardData = null;
-      let lastVisitorTableSignature = '';
 
       const updateAccountabilitySummary = () => {
         const visitors = latestDashboardData?.visitors || [];
@@ -531,6 +552,8 @@
         const unaccounted = Math.max(inside - accounted, 0);
         const rate = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
 
+        document.querySelector('#banner-accounted').textContent = `${accounted} / ${inside}`;
+        document.querySelector('#banner-unaccounted').textContent = unaccounted;
         document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
         document.querySelector('#dashboard-accounted-rate').textContent = rate;
         document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
@@ -550,13 +573,9 @@
           const data = await response.json();
           latestDashboardData = data;
           const visitors = Array.isArray(data.visitors) ? data.visitors : [];
-          // Keep the old one-row-per-visitor dashboard format while Visit Logs
-          // continues to retain every separate visit in the background.
-          const displayVisitors = Array.from(visitors.reduce((map, visitor) => {
-            const key = String(visitor['Visitor ID'] || '').toUpperCase();
-            if (key) map.set(key, visitor);
-            return map;
-          }, new Map()).values());
+          document.querySelector('#dashboard-registered').textContent = data.registered ?? 0;
+          document.querySelector('#dashboard-inside').textContent = data.inside ?? 0;
+          document.querySelector('#dashboard-checked-out').textContent = data.checked_out ?? 0;
           const registered = Number(data.registered ?? 0);
           const inside = Number(data.inside ?? 0);
           const checkedOut = Number(data.checked_out ?? 0);
@@ -568,19 +587,18 @@
           document.querySelector('#summary-checked-out').textContent = checkedOut;
           document.querySelector('#summary-safety-rate').textContent = `${safetyRate}%`;
           document.querySelector('#summary-safety-detail').textContent = `${inside}/${inside} Safe`;
+          document.querySelector('#banner-total-inside').textContent = inside;
+          document.querySelector('#banner-accounted').textContent = `${accounted} / ${inside}`;
+          document.querySelector('#banner-unaccounted').textContent = unaccounted;
           const syncLabel = data.sync_warning ? 'Cached Google Sheets data' : 'Live Google Sheets sync';
-          document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})}`;
-          const tableSignature = JSON.stringify(displayVisitors.map(visitor => [visitor['Visit ID'], visitor.Status, visitor.Accounted, visitor['Check-in'], visitor['Check-out']]));
-          document.querySelector('#dashboard-inside-heading').textContent = `Today’s Visitors (${displayVisitors.length})`;
+          document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString()}`;
+          document.querySelector('#dashboard-inside-heading').textContent = `Currently Inside (${data.inside ?? 0})`;
           document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
           document.querySelector('#dashboard-accounted-rate').textContent = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
           document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
-          document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString('en-PH', {hour12: true, timeZone: 'Asia/Manila'})}`;
-          if (tableSignature !== lastVisitorTableSignature) {
-            document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(displayVisitors);
-            lastVisitorTableSignature = tableSignature;
-          }
-          document.querySelector('#dashboard-more').textContent = displayVisitors.length > 10 ? `... and ${displayVisitors.length - 10} more visitors today` : '';
+          document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString()}`;
+          document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
+          document.querySelector('#dashboard-more').textContent = visitors.length > 10 ? `... and ${visitors.length - 10} more visitors currently inside` : '';
         } catch (error) {
           if (error.name === 'AbortError') return;
           document.querySelector('#dashboard-updated-at').textContent = 'Google Sheets sync unavailable';
@@ -595,8 +613,6 @@
         if (!selector) return;
         const previousValue = selector.dataset.previousValue || 'UNACCOUNTED';
         selector.dataset.previousValue = selector.value;
-        selector.classList.toggle('text-emerald-700', selector.value === 'ACCOUNTED');
-        selector.classList.toggle('text-rose-700', selector.value !== 'ACCOUNTED');
         const visitor = latestDashboardData?.visitors?.find(item =>
           String(item['Visitor ID']) === selector.dataset.accountabilityId
         );
@@ -608,7 +624,7 @@
 
         selector.disabled = true;
         try {
-          const response = await fetch('/api/visitor-status', {
+          const response = await fetch('{{ url('/api/visitor-status') }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: selector.dataset.accountabilityId, action: 'accountability', accountability: selector.value})
@@ -618,8 +634,6 @@
           refreshEmergencyDashboard();
         } catch (error) {
           selector.value = previousValue;
-          selector.classList.toggle('text-emerald-700', previousValue === 'ACCOUNTED');
-          selector.classList.toggle('text-rose-700', previousValue !== 'ACCOUNTED');
           if (visitor) {
             visitor.Accounted = previousValue;
             updateAccountabilitySummary();
@@ -661,7 +675,7 @@
         passStatus.textContent = 'Loading visitor from Google Sheets…';
         passPreview.classList.add('hidden');
         try {
-          const response = await fetch('/api/visitor-pass', {
+          const response = await fetch('{{ url('/api/visitor-pass') }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: visitorId, action: 'lookup'})
@@ -672,9 +686,6 @@
           document.querySelector('#visitor-pass-qr').src = data.qr_url;
           document.querySelector('#visitor-pass-name').textContent = data.Name || 'Campus Visitor';
           document.querySelector('#visitor-pass-id').textContent = data['Visitor ID'];
-          document.querySelector('#visitor-visit-history').innerHTML = (data.visit_history || []).map(visit =>
-            `<div class="border-b border-slate-200 py-1"><span class="font-mono">${escapeHtml(visit['Visit ID'])}</span> · ${escapeHtml(visit.Status)} · ${formatTime(visit['Check-in'])} – ${formatTime(visit['Check-out'])}</div>`
-          ).join('') || '<p>No visits recorded.</p>';
           passPreview.classList.remove('hidden');
           passStatus.textContent = 'QR code loaded from Visitor Database.';
         } catch (error) {
@@ -706,7 +717,7 @@
         if (!selectedPass || !email) return showMessage('Enter the visitor email address first.');
         passStatus.textContent = 'Sending QR pass…';
         try {
-          const response = await fetch('/api/visitor-pass', {
+          const response = await fetch('{{ url('/api/visitor-pass') }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: selectedPass['Visitor ID'], action: 'email', email})
