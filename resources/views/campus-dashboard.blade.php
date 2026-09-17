@@ -526,9 +526,8 @@
 
       const updateAccountabilitySummary = () => {
         const visitors = latestDashboardData?.visitors || [];
-        const insideVisitors = visitors.filter(visitor => String(visitor.Status || '').toUpperCase() === 'INSIDE');
-        const inside = Number(latestDashboardData?.inside ?? insideVisitors.length);
-        const accounted = insideVisitors.filter(isAccounted).length;
+        const inside = Number(latestDashboardData?.inside ?? visitors.length);
+        const accounted = visitors.filter(isAccounted).length;
         const unaccounted = Math.max(inside - accounted, 0);
         const rate = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
 
@@ -561,15 +560,14 @@
           const registered = Number(data.registered ?? 0);
           const inside = Number(data.inside ?? 0);
           const checkedOut = Number(data.checked_out ?? 0);
-          const insideVisitors = visitors.filter(visitor => String(visitor.Status || '').toUpperCase() === 'INSIDE');
-          const accounted = Number(data.accounted ?? insideVisitors.filter(visitor => isAccounted(visitor)).length);
+          const accounted = Number(data.accounted ?? visitors.filter(visitor => isAccounted(visitor)).length);
           const unaccounted = Number(data.unaccounted ?? Math.max(inside - accounted, 0));
-          const safetyRate = inside ? Math.round((accounted / inside) * 100) : 0;
+          const safetyRate = inside ? Math.round((inside / inside) * 100) : 0;
           document.querySelector('#summary-registered').textContent = registered;
           document.querySelector('#summary-inside').textContent = inside;
           document.querySelector('#summary-checked-out').textContent = checkedOut;
           document.querySelector('#summary-safety-rate').textContent = `${safetyRate}%`;
-          document.querySelector('#summary-safety-detail').textContent = `${accounted}/${inside} Safe`;
+          document.querySelector('#summary-safety-detail').textContent = `${inside}/${inside} Safe`;
           const syncLabel = data.sync_warning ? 'Cached Google Sheets data' : 'Live Google Sheets sync';
           document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})}`;
           const tableSignature = JSON.stringify(displayVisitors.map(visitor => [visitor['Visit ID'], visitor.Status, visitor.Accounted, visitor['Check-in'], visitor['Check-out']]));
