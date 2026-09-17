@@ -130,48 +130,43 @@ function updateVisitorStatusFast(id, status, accounted) {
   if (accounted) sheet.getRange(cell.getRow(), 11).setValue(accounted);
 }
 
-// Separate-sheet mode: Visitor Profile stores one row per person; Visit Logs stores every visit.
-const VISITOR_PROFILE_SHEET_NAME = VISITORS_SHEET_NAME;
+// Single-sheet mode: Visitors profile table stays in A:L; Visit Logs lives in N:T.
 const SINGLE_SHEET_LOG_START_COL = 14;
 const SINGLE_SHEET_LOG_HEADERS = ['Visit ID','Visitor ID','Check-in','Check-out','Status','Accounted','Created At'];
 function ensureDatabase() {
-  const ss=SpreadsheetApp.getActive();
-  let profiles=ss.getSheetByName(VISITOR_PROFILE_SHEET_NAME) || ss.getSheetByName(VISITORS_SHEET_NAME);
-  if(!profiles) profiles=ss.insertSheet(VISITOR_PROFILE_SHEET_NAME);
-  if(profiles.getName()!==VISITOR_PROFILE_SHEET_NAME) profiles.setName(VISITOR_PROFILE_SHEET_NAME);
-  if(profiles.getLastRow()<1) profiles.appendRow(VISITOR_HEADERS);
-  let logs=ss.getSheetByName(VISIT_LOGS_SHEET_NAME);
-  if(!logs) logs=ss.insertSheet(VISIT_LOGS_SHEET_NAME);
-  if(logs.getLastRow()<1) logs.appendRow(SINGLE_SHEET_LOG_HEADERS);
-  const props=PropertiesService.getScriptProperties();
-  if(props.getProperty('separate_sheets_migrated')!=='1'){
-    const header=profiles.getRange(1,SINGLE_SHEET_LOG_START_COL,1,SINGLE_SHEET_LOG_HEADERS.length).getValues()[0];
-    const unified=header.join('|')===SINGLE_SHEET_LOG_HEADERS.join('|')?readUnifiedVisitsRaw(profiles):[];
-    if(unified.length && logs.getLastRow()<=1) logs.getRange(2,1,unified.length,7).setValues(unified);
-    if(header.join('|')===SINGLE_SHEET_LOG_HEADERS.join('|')) profiles.getRange(1,SINGLE_SHEET_LOG_START_COL,profiles.getMaxRows(),SINGLE_SHEET_LOG_HEADERS.length).clearContent();
-    props.setProperty('separate_sheets_migrated','1');
+  const sheet = SpreadsheetApp.getActive().getSheetByName(VISITORS_SHEET_NAME);
+  if (!sheet) throw new Error('Visitors sheet not found');
+  const header = sheet.getRange(1, SINGLE_SHEET_LOG_START_COL, 1, SINGLE_SHEET_LOG_HEADERS.length).getValues()[0];
+  if (header.join('|') !== SINGLE_SHEET_LOG_HEADERS.join('|')) sheet.getRange(1, SINGLE_SHEET_LOG_START_COL, 1, SINGLE_SHEET_LOG_HEADERS.length).setValues([SINGLE_SHEET_LOG_HEADERS]);
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('single_sheet_migrated') !== '1') {
+    const old = SpreadsheetApp.getActive().getSheetByName(VISIT_LOGS_SHEET_NAME);
+    const existing = readUnifiedVisitsRaw(sheet);
+    if (old && old.getLastRow() > 1 && existing.length === 0) {
+      const rows = old.getRange(2, 1, old.getLastRow() - 1, 7).getValues().filter(r => r.some(Boolean));
+      if (rows.length) sheet.getRange(2, SINGLE_SHEET_LOG_START_COL, rows.length, 7).setValues(rows);
+    }
+    props.setProperty('single_sheet_migrated', '1');
   }
-  ss.setSpreadsheetTimeZone(MANILA_TIME_ZONE);
 }
-function getUnifiedSheet() { const s=SpreadsheetApp.getActive().getSheetByName(VISITOR_PROFILE_SHEET_NAME); if(!s)throw new Error('Visitor Profile sheet not found'); return s; }
-function getVisitLogSheet() { const s=SpreadsheetApp.getActive().getSheetByName(VISIT_LOGS_SHEET_NAME); if(!s)throw new Error('Visit Logs sheet not found'); return s; }
-function readUnifiedVisitsRaw(sheet) { const n=Math.max(sheet.getLastRow()-1,0); return n?n?sheet.getRange(2,SINGLE_SHEET_LOG_START_COL,n,7).getValues().filter(r=>r.some(Boolean)):[]:[]; }
+function getUnifiedSheet() { const s = SpreadsheetApp.getActive().getSheetByName(VISITORS_SHEET_NAME); if (!s) throw new Error('Visitors sheet not found'); return s; }
+function readUnifiedVisitsRaw(sheet) { const n = Math.max(sheet.getLastRow() - 1, 0); return n ? sheet.getRange(2, SINGLE_SHEET_LOG_START_COL, n, 7).getValues().filter(r => r.some(Boolean)) : []; }
 function readVisitors() { const sheet=getUnifiedSheet(), n=Math.max(sheet.getLastRow()-1,0); if(!n)return []; return sheet.getRange(2,1,n,12).getValues().filter(r=>r.some(Boolean)).map(r=>rowObject(VISITOR_HEADERS,r)); }
-function readVisits() { const sheet=getVisitLogSheet(), n=Math.max(sheet.getLastRow()-1,0); return n?sheet.getRange(2,1,n,7).getValues().filter(r=>r.some(Boolean)).map(r=>rowObject(SINGLE_SHEET_LOG_HEADERS,r)):[]; }
+function readVisits() { return readUnifiedVisitsRaw(getUnifiedSheet()).map(r=>rowObject(SINGLE_SHEET_LOG_HEADERS,r)); }
 function latestVisit(id) { return readVisits().filter(v=>String(v['Visitor ID']).toUpperCase()===id.toUpperCase()).sort((a,b)=>new Date(b['Created At'])-new Date(a['Created At']))[0]; }
 function visitsFor(id) { return readVisits().filter(v=>String(v['Visitor ID']).toUpperCase()===id.toUpperCase()).sort((a,b)=>new Date(a['Created At'])-new Date(b['Created At'])); }
 function createNextVisitorId() { return nextId(readVisitors().map(v=>v['Visitor ID']),'VIS-'); }
 function createNextVisitId() { return nextId(readVisits().map(v=>v['Visit ID']),'VISIT-'); }
 function updateVisitorStatus(id,status,accounted) { const sheet=getUnifiedSheet(), cell=sheet.createTextFinder(id).matchEntireCell(true).findNext(); if(!cell)return; sheet.getRange(cell.getRow(),10).setValue(status); if(accounted)sheet.getRange(cell.getRow(),11).setValue(accounted); }
 function saveCheckIn(visitorId) {
-  const sheet=getVisitLogSheet(), rows=readVisits().map(v=>SINGLE_SHEET_LOG_HEADERS.map(h=>v[h])), now=new Date(); let idx=-1;
+  const sheet=getUnifiedSheet(), rows=readUnifiedVisitsRaw(sheet), now=new Date(); let idx=-1;
   for(let i=rows.length-1;i>=0;i--) if(String(rows[i][1]||'').toUpperCase()===visitorId.toUpperCase()){idx=i;break;}
-  if(idx>=0 && String(rows[idx][4]||'').toUpperCase()==='INSIDE') { const opened=rows[idx][2] instanceof Date?rows[idx][2]:new Date(rows[idx][2]); if(!isNaN(opened.getTime()) && now-opened<24*60*60*1000)return jsonResponse({ok:true,visitor_id:visitorId,visit_id:rows[idx][0],status:'INSIDE',recorded_at:opened.toISOString()}); sheet.getRange(idx+2,4).setValue(now); sheet.getRange(idx+2,5).setValue('OUT'); }
-  let max=0; rows.forEach(r=>{const n=Number(String(r[0]||'').replace(/^VISIT-/i,''))||0;if(n>max)max=n;}); const visitId='VISIT-'+String(max+1).padStart(6,'0'); sheet.appendRow([visitId,visitorId,now,'','INSIDE','UNACCOUNTED',now]); updateVisitorStatus(visitorId,'INSIDE','UNACCOUNTED'); return jsonResponse({ok:true,visitor_id:visitorId,visit_id:visitId,status:'INSIDE',recorded_at:now.toISOString()});
+  if(idx>=0 && String(rows[idx][4]||'').toUpperCase()==='INSIDE') { const opened=rows[idx][2] instanceof Date?rows[idx][2]:new Date(rows[idx][2]); if(!isNaN(opened.getTime()) && now-opened<24*60*60*1000)return jsonResponse({ok:true,visitor_id:visitorId,visit_id:rows[idx][0],status:'INSIDE',recorded_at:opened.toISOString()}); sheet.getRange(idx+2,SINGLE_SHEET_LOG_START_COL+3).setValue(now); sheet.getRange(idx+2,SINGLE_SHEET_LOG_START_COL+4).setValue('OUT'); }
+  let max=0; rows.forEach(r=>{const n=Number(String(r[0]||'').replace(/^VISIT-/i,''))||0;if(n>max)max=n;}); const visitId='VISIT-'+String(max+1).padStart(6,'0'); sheet.getRange(sheet.getLastRow()+1,SINGLE_SHEET_LOG_START_COL,1,7).setValues([[visitId,visitorId,now,'','INSIDE','UNACCOUNTED',now]]); updateVisitorStatus(visitorId,'INSIDE','UNACCOUNTED'); return jsonResponse({ok:true,visitor_id:visitorId,visit_id:visitId,status:'INSIDE',recorded_at:now.toISOString()});
 }
-function saveCheckOut(visitorId) { const sheet=getVisitLogSheet(), rows=readVisits().map(v=>SINGLE_SHEET_LOG_HEADERS.map(h=>v[h])), idx=rows.findIndex(r=>String(r[1]||'').toUpperCase()===visitorId.toUpperCase()&&String(r[4]||'').toUpperCase()==='INSIDE'); if(idx<0)return jsonResponse({error:'No open visit found for this visitor'}); const now=new Date(); sheet.getRange(idx+2,4).setValue(now); sheet.getRange(idx+2,5).setValue('OUT'); updateVisitorStatus(visitorId,'OUT'); return jsonResponse({ok:true,visitor_id:visitorId,visit_id:rows[idx][0],status:'OUT',recorded_at:now.toISOString()}); }
-function saveAccountability(visitorId,value) { value=String(value||'').toUpperCase(); if(!['ACCOUNTED','UNACCOUNTED'].includes(value))return jsonResponse({error:'Accountability must be ACCOUNTED or UNACCOUNTED'}); const latest=latestVisit(visitorId); if(!latest)return jsonResponse({error:'No visit found'}); const sheet=getVisitLogSheet(), rows=readVisits().map(v=>SINGLE_SHEET_LOG_HEADERS.map(h=>v[h])), idx=rows.findIndex(r=>r[0]===latest['Visit ID']); if(idx<0)return jsonResponse({error:'Visit not found'}); sheet.getRange(idx+2,6).setValue(value); return jsonResponse({ok:true,visitor_id:visitorId,accountability:value}); }
-function appendVisit(visitorId,checkIn) { const sheet=getVisitLogSheet(), now=checkIn||new Date(), id=createNextVisitId(); sheet.appendRow([id,visitorId,now,'','INSIDE','UNACCOUNTED',now]); updateVisitorStatus(visitorId,'INSIDE','UNACCOUNTED'); }
+function saveCheckOut(visitorId) { const sheet=getUnifiedSheet(), rows=readUnifiedVisitsRaw(sheet), idx=rows.findIndex(r=>String(r[1]||'').toUpperCase()===visitorId.toUpperCase()&&String(r[4]||'').toUpperCase()==='INSIDE'); if(idx<0)return jsonResponse({error:'No open visit found for this visitor'}); const now=new Date(); sheet.getRange(idx+2,SINGLE_SHEET_LOG_START_COL+3).setValue(now); sheet.getRange(idx+2,SINGLE_SHEET_LOG_START_COL+4).setValue('OUT'); updateVisitorStatus(visitorId,'OUT'); return jsonResponse({ok:true,visitor_id:visitorId,visit_id:rows[idx][0],status:'OUT',recorded_at:now.toISOString()}); }
+function saveAccountability(visitorId,value) { value=String(value||'').toUpperCase(); if(!['ACCOUNTED','UNACCOUNTED'].includes(value))return jsonResponse({error:'Accountability must be ACCOUNTED or UNACCOUNTED'}); const latest=latestVisit(visitorId); if(!latest)return jsonResponse({error:'No visit found'}); const sheet=getUnifiedSheet(), rows=readUnifiedVisitsRaw(sheet), idx=rows.findIndex(r=>r[0]===latest['Visit ID']); if(idx<0)return jsonResponse({error:'Visit not found'}); sheet.getRange(idx+2,SINGLE_SHEET_LOG_START_COL+5).setValue(value); return jsonResponse({ok:true,visitor_id:visitorId,accountability:value}); }
+function appendVisit(visitorId,checkIn) { const sheet=getUnifiedSheet(), now=checkIn||new Date(), id=createNextVisitId(); sheet.getRange(sheet.getLastRow()+1,SINGLE_SHEET_LOG_START_COL,1,7).setValues([[id,visitorId,now,'','INSIDE','UNACCOUNTED',now]]); updateVisitorStatus(visitorId,'INSIDE','UNACCOUNTED'); }
 function findOrCreateProfile(data) { const existing=readVisitors().find(v=>(data.Email&&normalizeEmail(v.Email)===normalizeEmail(data.Email))||(normalize(v.Name)===normalize(data.Name)&&normalize(v['Company/Organization'])===normalize(data.Company))); if(existing)return existing; const sheet=getUnifiedSheet(), id=createNextVisitorId(), now=new Date(); sheet.getRange(sheet.getLastRow()+1,1,1,12).setValues([[id,data.Name,data.Email,'',data.Company,data.Type,data.Purpose,data.Host,data.Contact,'OUT','UNACCOUNTED',now]]); return {'Visitor ID':id,Name:data.Name}; }
 function buildDashboardSummary() { const profiles=readVisitors(),logs=readVisits(),today=Utilities.formatDate(new Date(),MANILA_TIME_ZONE,'yyyy-MM-dd'),todays=logs.filter(log=>log['Check-in']&&Utilities.formatDate(new Date(log['Check-in']),MANILA_TIME_ZONE,'yyyy-MM-dd')===today).map(log=>Object.assign({},findVisitor(profiles,log['Visitor ID'])||{},log)),inside=todays.filter(v=>v.Status==='INSIDE'),accounted=inside.filter(v=>v.Accounted==='ACCOUNTED').length; return {registered:profiles.length,inside:inside.length,checked_out:todays.filter(v=>v.Status==='OUT').length,accounted,unaccounted:inside.length-accounted,visitors:todays,updated_at:new Date().toISOString()}; }
 function doGet(request) { if(!isAuthorized(request))return jsonResponse({error:'Unauthorized'}); ensureDatabase(); const id=request.parameter&&request.parameter.visitor_id; if(id){const v=findVisitor(readVisitors(),id);return v?jsonResponse(Object.assign(addQrCode(v),{visit_history:visitsFor(v['Visitor ID'])})):jsonResponse({error:'Visitor not found'});} return jsonResponse(buildDashboardSummary()); }
