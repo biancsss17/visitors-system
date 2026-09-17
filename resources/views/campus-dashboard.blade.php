@@ -550,6 +550,13 @@
           const data = await response.json();
           latestDashboardData = data;
           const visitors = Array.isArray(data.visitors) ? data.visitors : [];
+          // Keep the old one-row-per-visitor dashboard format while Visit Logs
+          // continues to retain every separate visit in the background.
+          const displayVisitors = Array.from(visitors.reduce((map, visitor) => {
+            const key = String(visitor['Visitor ID'] || '').toUpperCase();
+            if (key) map.set(key, visitor);
+            return map;
+          }, new Map()).values());
           const registered = Number(data.registered ?? 0);
           const inside = Number(data.inside ?? 0);
           const checkedOut = Number(data.checked_out ?? 0);
@@ -563,17 +570,17 @@
           document.querySelector('#summary-safety-detail').textContent = `${inside}/${inside} Safe`;
           const syncLabel = data.sync_warning ? 'Cached Google Sheets data' : 'Live Google Sheets sync';
           document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})}`;
-          const tableSignature = JSON.stringify(visitors.map(visitor => [visitor['Visit ID'], visitor.Status, visitor.Accounted, visitor['Check-in'], visitor['Check-out']]));
-          document.querySelector('#dashboard-inside-heading').textContent = `Today’s Visitors (${visitors.length})`;
+          const tableSignature = JSON.stringify(displayVisitors.map(visitor => [visitor['Visit ID'], visitor.Status, visitor.Accounted, visitor['Check-in'], visitor['Check-out']]));
+          document.querySelector('#dashboard-inside-heading').textContent = `Today’s Visitors (${displayVisitors.length})`;
           document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
           document.querySelector('#dashboard-accounted-rate').textContent = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
           document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
           document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString('en-PH', {hour12: true, timeZone: 'Asia/Manila'})}`;
           if (tableSignature !== lastVisitorTableSignature) {
-            document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
+            document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(displayVisitors);
             lastVisitorTableSignature = tableSignature;
           }
-          document.querySelector('#dashboard-more').textContent = visitors.length > 10 ? `... and ${visitors.length - 10} more visitors today` : '';
+          document.querySelector('#dashboard-more').textContent = displayVisitors.length > 10 ? `... and ${displayVisitors.length - 10} more visitors today` : '';
         } catch (error) {
           if (error.name === 'AbortError') return;
           document.querySelector('#dashboard-updated-at').textContent = 'Google Sheets sync unavailable';
