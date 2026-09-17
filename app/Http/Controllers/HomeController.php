@@ -22,10 +22,11 @@ class HomeController extends Controller
         return 'Generated successfully';
     }
 
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $endpoint = config('services.google.dashboard_endpoint');
         $token = config('services.google.dashboard_token');
+        $fresh = $request->boolean('fresh');
 
         if (!$endpoint || !$token) {
             return response()->json(['error' => 'Google Sheets dashboard is not configured.'], 503);
@@ -33,7 +34,7 @@ class HomeController extends Controller
 
         $cachedPayload = Cache::get('google.dashboard.payload');
         $cachedAt = Cache::get('google.dashboard.fetched_at');
-        if (is_array($cachedPayload) && is_numeric($cachedAt) && (time() - (int) $cachedAt) < 5) {
+        if (!$fresh && is_array($cachedPayload) && is_numeric($cachedAt) && (time() - (int) $cachedAt) < 5) {
             return response()->json($cachedPayload)
                 ->header('Cache-Control', 'no-store, private');
         }

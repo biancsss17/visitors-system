@@ -544,7 +544,7 @@
       };
 
       let dashboardRequest = null;
-      const refreshEmergencyDashboard = async ({force = false} = {}) => {
+      const refreshEmergencyDashboard = async ({force = false, retry = true} = {}) => {
         if (!dashboardEndpoint || document.hidden) return;
         if (dashboardRequest) {
           if (!force) return;
@@ -553,7 +553,8 @@
         const controller = new AbortController();
         dashboardRequest = controller;
         try {
-          const response = await fetch(dashboardEndpoint, {
+          const refreshUrl = force ? `${dashboardEndpoint}?fresh=${Date.now()}` : dashboardEndpoint;
+          const response = await fetch(refreshUrl, {
             cache: 'no-store',
             signal: controller.signal
           });
@@ -595,6 +596,9 @@
           if (error.name === 'AbortError') return;
           document.querySelector('#dashboard-updated-at').textContent = 'Google Sheets sync unavailable';
           document.querySelector('#banner-sync-status').textContent = 'Google Sheets sync unavailable';
+          if (force && retry) {
+            window.setTimeout(() => refreshEmergencyDashboard({force: true, retry: false}), 750);
+          }
         } finally {
           if (dashboardRequest === controller) dashboardRequest = null;
         }
