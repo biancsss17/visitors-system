@@ -414,7 +414,10 @@
           stopScanner();
           const actionLabel = scanAction === 'checkin' ? 'checked in' : 'checked out';
           showMessage(`✓ ${visitorId} ${actionLabel} successfully. Google Sheets was updated.`);
-          await refreshEmergencyDashboard();
+          // Force a post-write read. A background poll may already be running;
+          // waiting for it or skipping this refresh is what made scans appear
+          // missing from Today's Visitors.
+          await refreshEmergencyDashboard({force: true});
         } catch (error) {
           scanSubmitting = false;
           scannerStatus.textContent = error.message || 'The Google Sheets update failed.';
@@ -541,8 +544,12 @@
       };
 
       let dashboardRequest = null;
-      const refreshEmergencyDashboard = async () => {
-        if (!dashboardEndpoint || document.hidden || dashboardRequest) return;
+      const refreshEmergencyDashboard = async ({force = false} = {}) => {
+        if (!dashboardEndpoint || document.hidden) return;
+        if (dashboardRequest) {
+          if (!force) return;
+          dashboardRequest.abort();
+        }
         const controller = new AbortController();
         dashboardRequest = controller;
         try {
@@ -589,7 +596,7 @@
           document.querySelector('#dashboard-updated-at').textContent = 'Google Sheets sync unavailable';
           document.querySelector('#banner-sync-status').textContent = 'Google Sheets sync unavailable';
         } finally {
-          dashboardRequest = null;
+          if (dashboardRequest === controller) dashboardRequest = null;
         }
       };
 
