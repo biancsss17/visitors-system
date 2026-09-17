@@ -362,7 +362,8 @@
       const scannerStatus = document.querySelector('#qr-scanner-status');
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
       let cameraStream = null;
-      let scanAction = 'checkout';
+      // Check-in is the safer default when the scanner is opened; users can still choose Check Out.
+      let scanAction = 'checkin';
       let scanFrame = null;
       let barcodeDetector = null;
       let scanSubmitting = false;
@@ -383,7 +384,7 @@
       const submitScan = async (rawValue) => {
         if (scanSubmitting) return;
         scanSubmitting = true;
-        const match = String(rawValue).match(/VIS-\d+/i);
+        const match = decodeURIComponent(String(rawValue)).match(/VIS-\d{6}/i);
         const visitorId = match ? match[0].toUpperCase() : String(rawValue).trim();
         if (!visitorId) return;
         stopScanner();
@@ -415,7 +416,10 @@
           if (barcodeDetector) {
             const codes = await barcodeDetector.detect(camera);
             rawValue = codes.length ? codes[0].rawValue : '';
-          } else if (window.jsQR && camera.videoWidth) {
+          }
+          // Use jsQR as a fallback even when BarcodeDetector exists; this handles older
+          // visitor passes and browsers whose native detector misses low-contrast codes.
+          if (!rawValue && window.jsQR && camera.videoWidth) {
             scanCanvas.width = camera.videoWidth;
             scanCanvas.height = camera.videoHeight;
             scanContext.drawImage(camera, 0, 0, scanCanvas.width, scanCanvas.height);
@@ -443,7 +447,7 @@
         }
         try {
           barcodeDetector = 'BarcodeDetector' in window ? new BarcodeDetector({formats: ['qr_code']}) : null;
-          cameraStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 640}, height: {ideal: 480}}, audio: false});
+          cameraStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 1280}, height: {ideal: 720}, frameRate: {ideal: 30, max: 30}}, audio: false});
           camera.srcObject = cameraStream;
           await camera.play();
           scanFrameLoop();
