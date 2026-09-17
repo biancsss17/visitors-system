@@ -454,7 +454,7 @@
         }
         try {
           barcodeDetector = 'BarcodeDetector' in window ? new BarcodeDetector({formats: ['qr_code']}) : null;
-          cameraStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}}, audio: false});
+          cameraStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 640}, height: {ideal: 480}}, audio: false});
           camera.srcObject = cameraStream;
           await camera.play();
           scanFrameLoop();
@@ -522,6 +522,7 @@
         : '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">No visitors registered today.</td></tr>';
 
       let latestDashboardData = null;
+      let lastVisitorTableSignature = '';
 
       const updateAccountabilitySummary = () => {
         const visitors = latestDashboardData?.visitors || [];
@@ -562,12 +563,16 @@
           document.querySelector('#summary-safety-detail').textContent = `${inside}/${inside} Safe`;
           const syncLabel = data.sync_warning ? 'Cached Google Sheets data' : 'Live Google Sheets sync';
           document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})}`;
+          const tableSignature = JSON.stringify(visitors.map(visitor => [visitor['Visit ID'], visitor.Status, visitor.Accounted, visitor['Check-in'], visitor['Check-out']]));
           document.querySelector('#dashboard-inside-heading').textContent = `Today’s Visitors (${visitors.length})`;
           document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
           document.querySelector('#dashboard-accounted-rate').textContent = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
           document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
           document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString('en-PH', {hour12: true, timeZone: 'Asia/Manila'})}`;
-          document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
+          if (tableSignature !== lastVisitorTableSignature) {
+            document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
+            lastVisitorTableSignature = tableSignature;
+          }
           document.querySelector('#dashboard-more').textContent = visitors.length > 10 ? `... and ${visitors.length - 10} more visitors today` : '';
         } catch (error) {
           if (error.name === 'AbortError') return;
