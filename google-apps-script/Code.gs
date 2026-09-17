@@ -129,3 +129,16 @@ function updateVisitorStatusFast(id, status, accounted) {
   sheet.getRange(cell.getRow(), 10).setValue(status);
   if (accounted) sheet.getRange(cell.getRow(), 11).setValue(accounted);
 }
+// Count only valid visitor profile rows; stray visit-log rows on Visitors are ignored.
+function readVisitors() {
+  return readTable(getSheet(VISITORS_SHEET_NAME)).rows
+    .filter(r => /^VIS-\d{6}$/i.test(String(r[0] || '').trim()))
+    .map(r => rowObject(VISITOR_HEADERS, r));
+}
+
+// Read only valid visit-log rows so malformed side-table rows cannot affect history.
+function readVisits() {
+  return readTable(getSheet(VISIT_LOGS_SHEET_NAME)).rows
+    .filter(r => /^VISIT-\d{6}$/i.test(String(r[0] || '').trim()) && /^VIS-\d{6}$/i.test(String(r[1] || '').trim()))
+    .map(r => rowObject(VISITOR_HEADERS, r));
+}
