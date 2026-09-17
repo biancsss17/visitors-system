@@ -172,7 +172,7 @@
 <main class="w-full max-w-none px-4 py-6 sm:px-6 lg:px-8 space-y-5">
 <!-- BEGIN: EmergencyEvacuationBanner -->
 <!-- Emergency Evacuation & Fire Drill Alert Card -->
-<section class="emergency-glow bg-gradient-to-r from-red-600 via-rose-600 to-red-700 rounded-xl p-3.5 text-white shadow-lg relative overflow-hidden" data-purpose="evacuation-banner">
+<section class="emergency-glow bg-gradient-to-r from-red-600 via-rose-600 to-red-700 rounded-xl p-3.5 text-white shadow-lg relative overflow-hidden" data-purpose="evacuation-banner" data-format="legacy-fire-drill-accountability">
 <div class="absolute -right-6 -bottom-6 opacity-15 pointer-events-none">
 <svg class="w-32 h-32 text-white fill-current" viewbox="0 0 24 24">
 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path>
