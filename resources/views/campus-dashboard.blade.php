@@ -389,11 +389,16 @@
 
       const submitScan = async (rawValue) => {
         if (scanSubmitting) return;
-        scanSubmitting = true;
         const match = String(rawValue).match(/VIS-\d+/i);
         const visitorId = match ? match[0].toUpperCase() : String(rawValue).trim();
         if (!visitorId) return;
-        scannerStatus.textContent = `Recording ${scanAction === 'checkin' ? 'check-in' : 'check-out'} for ${visitorId}…`;
+        // A QR read is complete as soon as a valid ID is captured. Stop the
+        // camera immediately so the user gets feedback without waiting for
+        // the Google Sheets round-trip.
+        stopScanner();
+        scanSubmitting = true;
+        scannerStatus.textContent = `Saving ${scanAction === 'checkin' ? 'check-in' : 'check-out'} for ${visitorId}…`;
+        showMessage(`✓ ${visitorId} QR captured. Saving status…`);
         try {
           const response = await fetch('/api/visitor-status', {
             method: 'POST',
@@ -448,7 +453,7 @@
         }
         try {
           barcodeDetector = 'BarcodeDetector' in window ? new BarcodeDetector({formats: ['qr_code']}) : null;
-          cameraStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}}, audio: false});
+          cameraStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}, width: {ideal: 640}, height: {ideal: 480}}, audio: false});
           camera.srcObject = cameraStream;
           await camera.play();
           scanFrameLoop();
@@ -516,6 +521,7 @@
         : '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">No visitors registered today.</td></tr>';
 
       let latestDashboardData = null;
+      let lastVisitorTableSignature = '';
 
       const updateAccountabilitySummary = () => {
         const visitors = latestDashboardData?.visitors || [];
@@ -561,7 +567,14 @@
           document.querySelector('#dashboard-accounted-rate').textContent = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
           document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
           document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString('en-PH', {hour12: true, timeZone: 'Asia/Manila'})}`;
-          document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
+          const tableSignature = JSON.stringify(visitors.map(visitor => [
+            visitor['Visitor ID'], visitor.Status, visitor.Accounted,
+            visitor['Check-in'], visitor['Check-out']
+          ]));
+          if (tableSignature !== lastVisitorTableSignature) {
+            document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
+            lastVisitorTableSignature = tableSignature;
+          }
           document.querySelector('#dashboard-more').textContent = visitors.length > 10 ? `... and ${visitors.length - 10} more visitors today` : '';
         } catch (error) {
           if (error.name === 'AbortError') return;
@@ -577,6 +590,8 @@
         if (!selector) return;
         const previousValue = selector.dataset.previousValue || 'UNACCOUNTED';
         selector.dataset.previousValue = selector.value;
+        selector.classList.toggle('text-emerald-700', selector.value === 'ACCOUNTED');
+        selector.classList.toggle('text-rose-700', selector.value !== 'ACCOUNTED');
         const visitor = latestDashboardData?.visitors?.find(item =>
           String(item['Visitor ID']) === selector.dataset.accountabilityId
         );
@@ -598,6 +613,8 @@
           refreshEmergencyDashboard();
         } catch (error) {
           selector.value = previousValue;
+          selector.classList.toggle('text-emerald-700', previousValue === 'ACCOUNTED');
+          selector.classList.toggle('text-rose-700', previousValue !== 'ACCOUNTED');
           if (visitor) {
             visitor.Accounted = previousValue;
             updateAccountabilitySummary();
