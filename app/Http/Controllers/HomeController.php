@@ -141,6 +141,20 @@ class HomeController extends Controller
             return response()->json($payload, $response->getStatusCode())
                 ->header('Cache-Control', 'no-store, private');
         } catch (\Throwable $exception) {
+            // The original pass rule uses the Visitor ID as the QR payload. Keep
+            // printing available immediately when a Sheets lookup is slow.
+            if ($data['action'] === 'lookup') {
+                $visitorId = strtoupper($data['visitor_id']);
+                return response()->json([
+                    'Visitor ID' => $visitorId,
+                    'Name' => 'Campus Visitor',
+                    'qr_value' => $visitorId,
+                    'qr_url' => 'https://quickchart.io/qr?size=240&text=' . rawurlencode($visitorId),
+                    'visit_history' => [],
+                    'offline' => true,
+                ])->header('Cache-Control', 'no-store, private');
+            }
+
             return response()->json(['error' => 'Google Sheets pass service is unavailable.'], 503);
         }
     }
