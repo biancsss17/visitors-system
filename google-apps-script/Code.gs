@@ -90,3 +90,42 @@ function addQrCode(v) { const id=String(v['Visitor ID']||'');return Object.assig
 function sendVisitorPass(body) { const v=findVisitor(readVisitors(),body.visitor_id),email=normalizeEmail(body.email);if(!v)return jsonResponse({error:'Visitor not found'});if(!email)return jsonResponse({error:'A valid recipient email is required'});const pass=addQrCode(v);MailApp.sendEmail({to:email,subject:'Visitor QR Pass - '+pass['Visitor ID'],body:'Visitor ID: '+pass['Visitor ID']+'\nQR code: '+pass.qr_url});return jsonResponse({ok:true,visitor_id:pass['Visitor ID'],email,sent_to:email}); }
 function parseRequestBody(r) { try{return JSON.parse(r.postData.contents||'{}');}catch(e){return null;} } function isAuthorized(r){return r&&r.parameter&&r.parameter.token===DASHBOARD_TOKEN;} function normalize(v){return String(v||'').trim().toLowerCase();} function normalizeEmail(v){return normalize(v);} function normalizeVisitorId(v){return String(v||'').trim().toUpperCase();} function toIso(v){return v instanceof Date?v.toISOString():new Date(v).toISOString();} function jsonResponse(p){return ContentService.createTextOutput(JSON.stringify(p)).setMimeType(ContentService.MimeType.JSON);}
 function setupDatabase(){ensureDatabase();} function installTrigger(){const ss=SpreadsheetApp.getActive();ScriptApp.getProjectTriggers().forEach(t=>{if(t.getHandlerFunction()==='onFormSubmit')ScriptApp.deleteTrigger(t);});ScriptApp.newTrigger('onFormSubmit').forSpreadsheet(ss).onFormSubmit().create();}
+
+// Performance override: check-in uses one Visit Logs read and a targeted profile update.
+function saveCheckIn(visitorId) {
+  const sheet = getSheet(VISIT_LOGS_SHEET_NAME);
+  const values = sheet.getDataRange().getValues();
+  const now = new Date();
+  let latestIndex = -1;
+  for (let i = values.length - 1; i >= 1; i--) {
+    if (String(values[i][1] || '').trim().toUpperCase() === visitorId.toUpperCase()) {
+      latestIndex = i;
+      break;
+    }
+  }
+  if (latestIndex >= 1 && String(values[latestIndex][4] || '').trim().toUpperCase() === 'INSIDE') {
+    const openedAt = values[latestIndex][2] instanceof Date ? values[latestIndex][2] : new Date(values[latestIndex][2]);
+    if (!isNaN(openedAt.getTime()) && (now.getTime() - openedAt.getTime()) < 24 * 60 * 60 * 1000) {
+      return jsonResponse({ok:true, visitor_id:visitorId, visit_id:values[latestIndex][0], status:'INSIDE', recorded_at:openedAt.toISOString()});
+    }
+    sheet.getRange(latestIndex + 1, 4).setValue(now);
+    sheet.getRange(latestIndex + 1, 5).setValue('OUT');
+  }
+  let maxVisit = 0;
+  for (let i = 1; i < values.length; i++) {
+    const n = Number(String(values[i][0] || '').replace(/^VISIT-/i, '')) || 0;
+    if (n > maxVisit) maxVisit = n;
+  }
+  const visitId = 'VISIT-' + String(maxVisit + 1).padStart(6, '0');
+  sheet.appendRow([visitId, visitorId, now, '', 'INSIDE', 'UNACCOUNTED', now]);
+  updateVisitorStatusFast(visitorId, 'INSIDE', 'UNACCOUNTED');
+  return jsonResponse({ok:true, visitor_id:visitorId, visit_id:visitId, status:'INSIDE', recorded_at:now.toISOString()});
+}
+
+function updateVisitorStatusFast(id, status, accounted) {
+  const sheet = getSheet(VISITORS_SHEET_NAME);
+  const cell = sheet.createTextFinder(id).matchEntireCell(true).findNext();
+  if (!cell) return;
+  sheet.getRange(cell.getRow(), 10).setValue(status);
+  if (accounted) sheet.getRange(cell.getRow(), 11).setValue(accounted);
+}
