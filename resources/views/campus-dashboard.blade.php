@@ -183,6 +183,21 @@
 <p id="banner-sync-status" class="text-[10px] text-rose-100">Connecting to Google Sheets…</p>
 </div>
 </div>
+<!-- Evacuation metrics quick visual -->
+<div class="mt-3 bg-red-900/40 rounded-lg p-2.5 backdrop-blur-sm border border-red-400/30 flex items-center justify-between">
+<div class="text-center px-2 border-r border-red-400/30 flex-1">
+<span class="text-[10px] uppercase font-bold text-red-200 block">Total Inside</span>
+<span id="banner-total-inside" class="text-lg font-black text-white leading-tight">—</span>
+</div>
+<div class="text-center px-2 border-r border-red-400/30 flex-1">
+<span class="text-[10px] uppercase font-bold text-emerald-200 block">Accounted</span>
+<span id="banner-accounted" class="text-lg font-black text-emerald-300 leading-tight">— / —</span>
+</div>
+<div class="text-center px-2 flex-1">
+<span class="text-[10px] uppercase font-bold text-red-200 block">Unaccounted</span>
+<span id="banner-unaccounted" class="text-lg font-black text-yellow-300 leading-tight">—</span>
+</div>
+</div>
 </section>
 <!-- END: EmergencyEvacuationBanner -->
 <!-- BEGIN: KeyMetricsBar -->
@@ -192,8 +207,9 @@
 <div class="bg-white rounded-xl p-2.5 shadow-sm border border-slate-200 text-center flex flex-col justify-between">
 <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-tighter line-clamp-1">Registered</span>
 <span id="summary-registered" class="text-xl font-bold text-sky-800 my-0.5">—</span>
+<span class="text-[9px] text-slate-400 font-medium">All Today</span>
 </div>
-<!-- Today's visitor records -->
+<!-- Currently Inside -->
 <div class="bg-white rounded-xl p-2.5 shadow-sm border-2 border-emerald-500/50 bg-emerald-50/20 text-center flex flex-col justify-between">
 <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-tighter line-clamp-1">Inside</span>
 <span id="summary-inside" class="text-xl font-black text-emerald-600 my-0.5">—</span>
@@ -216,7 +232,7 @@
 <!-- BEGIN: PrimaryActionWorkflows -->
 <section class="space-y-2" data-purpose="primary-quick-actions">
 <div class="flex items-center justify-between px-0.5">
-<h3 class="text-sm font-bold tracking-wider text-slate-500 uppercase">Security Actions</h3>
+<h3 class="text-xs font-bold tracking-wider text-slate-500 uppercase">Security Actions</h3>
 </div>
 <div class="grid grid-cols-3 gap-2.5">
 <a href="{{ config('services.google.form_url', '#') }}" target="_blank" rel="noreferrer" data-google-form="{{ config('services.google.form_url', '#') }}" class="bg-campus-navy active:bg-slate-900 text-white p-3 rounded-xl shadow-sm flex flex-col items-center justify-center text-center group transition-transform active:scale-95">
@@ -259,10 +275,25 @@
     </div>
   </div>
 
+  <div class="grid grid-cols-1 gap-2 border-b border-slate-200 bg-slate-50 p-3 sm:grid-cols-3">
+    <div class="rounded-lg border border-sky-200 bg-sky-50 p-3 text-center">
+      <span class="block text-[10px] font-bold uppercase text-sky-800">Total Visitors Registered</span>
+      <strong id="dashboard-registered" class="mt-1 block text-2xl font-black text-sky-700">—</strong>
+    </div>
+    <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center">
+      <span class="block text-[10px] font-bold uppercase text-emerald-800">Currently Inside</span>
+      <strong id="dashboard-inside" class="mt-1 block text-2xl font-black text-emerald-600">—</strong>
+    </div>
+    <div class="rounded-lg border border-slate-200 bg-white p-3 text-center">
+      <span class="block text-[10px] font-bold uppercase text-slate-600">Checked Out</span>
+      <strong id="dashboard-checked-out" class="mt-1 block text-2xl font-black text-slate-700">—</strong>
+    </div>
+  </div>
+
   <div class="grid grid-cols-1 gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_220px]">
     <div class="overflow-hidden rounded-lg border border-slate-200">
       <div class="border-b border-slate-200 bg-slate-50 px-3 py-2">
-        <h3 id="dashboard-inside-heading" class="text-xs font-black uppercase tracking-wider text-slate-700">Today's Visitors</h3>
+        <h3 id="dashboard-inside-heading" class="text-xs font-black uppercase tracking-wider text-slate-700">Currently Inside</h3>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full text-left text-[11px]">
@@ -395,7 +426,7 @@
         if (!visitorId) return;
         scannerStatus.textContent = `Recording ${scanAction === 'checkin' ? 'check-in' : 'check-out'} for ${visitorId}…`;
         try {
-          const response = await fetch('/api/visitor-status', {
+          const response = await fetch('{{ url('/api/visitor-status') }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: visitorId, action: scanAction})
@@ -469,7 +500,7 @@
       document.querySelector('#close-qr-scanner')?.addEventListener('click', stopScanner);
       document.querySelector('#exit-qr-scanner')?.addEventListener('click', stopScanner);
 
-      const dashboardEndpoint = '/api/dashboard';
+      const dashboardEndpoint = @json(url('/api/dashboard'));
       const escapeHtml = value => String(value ?? '').replace(/[&<>'\"]/g, character => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -479,7 +510,7 @@
       }[character]));
 
       const formatTime = value => value
-        ? new Date(value).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})
+        ? new Date(value).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
         : '—';
 
       const isAccounted = visitor => String(visitor.Accounted || '').toUpperCase() === 'ACCOUNTED';
@@ -491,11 +522,8 @@
         const selectedUnaccounted = accounted ? '' : 'selected';
         const colorClass = accounted ? 'text-emerald-700' : 'text-rose-700';
 
-        const checkedOut = String(visitor.Status || '').toUpperCase() === 'OUT';
-        const rowClass = checkedOut ? 'bg-slate-50 text-slate-500' : '';
-
         return `
-          <tr class="${rowClass}">
+          <tr>
             <td class="px-3 py-2 font-mono">${visitorId}</td>
             <td class="px-3 py-2 font-semibold">${escapeHtml(visitor.Name)}</td>
             <td class="px-3 py-2">${escapeHtml(visitor['Company/Organization'])}</td>
@@ -513,7 +541,7 @@
 
       const renderVisitorTable = visitors => visitors.length
         ? visitors.slice(0, 10).map(renderVisitorRow).join('')
-        : '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">No visitors registered today.</td></tr>';
+        : '<tr><td colspan="7" class="px-3 py-4 text-center text-slate-400">No visitors currently inside.</td></tr>';
 
       let latestDashboardData = null;
 
@@ -524,6 +552,8 @@
         const unaccounted = Math.max(inside - accounted, 0);
         const rate = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
 
+        document.querySelector('#banner-accounted').textContent = `${accounted} / ${inside}`;
+        document.querySelector('#banner-unaccounted').textContent = unaccounted;
         document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
         document.querySelector('#dashboard-accounted-rate').textContent = rate;
         document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
@@ -543,6 +573,9 @@
           const data = await response.json();
           latestDashboardData = data;
           const visitors = Array.isArray(data.visitors) ? data.visitors : [];
+          document.querySelector('#dashboard-registered').textContent = data.registered ?? 0;
+          document.querySelector('#dashboard-inside').textContent = data.inside ?? 0;
+          document.querySelector('#dashboard-checked-out').textContent = data.checked_out ?? 0;
           const registered = Number(data.registered ?? 0);
           const inside = Number(data.inside ?? 0);
           const checkedOut = Number(data.checked_out ?? 0);
@@ -554,15 +587,18 @@
           document.querySelector('#summary-checked-out').textContent = checkedOut;
           document.querySelector('#summary-safety-rate').textContent = `${safetyRate}%`;
           document.querySelector('#summary-safety-detail').textContent = `${inside}/${inside} Safe`;
+          document.querySelector('#banner-total-inside').textContent = inside;
+          document.querySelector('#banner-accounted').textContent = `${accounted} / ${inside}`;
+          document.querySelector('#banner-unaccounted').textContent = unaccounted;
           const syncLabel = data.sync_warning ? 'Cached Google Sheets data' : 'Live Google Sheets sync';
-          document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})}`;
-          document.querySelector('#dashboard-inside-heading').textContent = `Today’s Visitors (${visitors.length})`;
+          document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString()}`;
+          document.querySelector('#dashboard-inside-heading').textContent = `Currently Inside (${data.inside ?? 0})`;
           document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
           document.querySelector('#dashboard-accounted-rate').textContent = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
           document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
-          document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString('en-PH', {hour12: true, timeZone: 'Asia/Manila'})}`;
+          document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString()}`;
           document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
-          document.querySelector('#dashboard-more').textContent = visitors.length > 10 ? `... and ${visitors.length - 10} more visitors today` : '';
+          document.querySelector('#dashboard-more').textContent = visitors.length > 10 ? `... and ${visitors.length - 10} more visitors currently inside` : '';
         } catch (error) {
           if (error.name === 'AbortError') return;
           document.querySelector('#dashboard-updated-at').textContent = 'Google Sheets sync unavailable';
@@ -588,7 +624,7 @@
 
         selector.disabled = true;
         try {
-          const response = await fetch('/api/visitor-status', {
+          const response = await fetch('{{ url('/api/visitor-status') }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: selector.dataset.accountabilityId, action: 'accountability', accountability: selector.value})
@@ -639,7 +675,7 @@
         passStatus.textContent = 'Loading visitor from Google Sheets…';
         passPreview.classList.add('hidden');
         try {
-          const response = await fetch('/api/visitor-pass', {
+          const response = await fetch('{{ url('/api/visitor-pass') }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: visitorId, action: 'lookup'})
@@ -681,7 +717,7 @@
         if (!selectedPass || !email) return showMessage('Enter the visitor email address first.');
         passStatus.textContent = 'Sending QR pass…';
         try {
-          const response = await fetch('/api/visitor-pass', {
+          const response = await fetch('{{ url('/api/visitor-pass') }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json'},
             body: JSON.stringify({visitor_id: selectedPass['Visitor ID'], action: 'email', email})
@@ -703,7 +739,7 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) refreshEmergencyDashboard();
       });
-      window.setInterval(refreshEmergencyDashboard, 10000);
+      window.setInterval(refreshEmergencyDashboard, 30000);
     });
   </script>
 <!-- END: InteractiveScripts -->
