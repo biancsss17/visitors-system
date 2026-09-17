@@ -669,8 +669,9 @@
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || 'Visitor was not found.');
           selectedPass = data;
+          const displayName = data.Name || data['Full Name'] || data['Visitor Name'] || data.name || 'Visitor';
           setPassQr(data['Visitor ID'], data.qr_url);
-          document.querySelector('#visitor-pass-name').textContent = data.Name || 'Campus Visitor';
+          document.querySelector('#visitor-pass-name').textContent = displayName;
           document.querySelector('#visitor-pass-id').textContent = data['Visitor ID'];
           document.querySelector('#visitor-visit-history').innerHTML = (data.visit_history || []).map(visit =>
             `<div class="border-b border-slate-200 py-1"><span class="font-mono">${escapeHtml(visit['Visit ID'])}</span> · ${escapeHtml(visit.Status)} · ${formatTime(visit['Check-in'])} – ${formatTime(visit['Check-out'])}</div>`
@@ -687,7 +688,8 @@
         const qrUrl = document.querySelector('#visitor-pass-qr').src;
         const printWindow = window.open('', '_blank', 'width=480,height=640');
         if (!printWindow) return showMessage('Please allow pop-ups to print the visitor pass.');
-        printWindow.document.write(`<html><head><title>Visitor Pass ${escapeHtml(selectedPass['Visitor ID'])}</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:32px;color:#0b2545}.pass{border:2px solid #0b2545;border-radius:16px;padding:24px;max-width:320px;margin:auto}img{width:240px;height:240px}.id{font-family:monospace;font-weight:bold}</style></head><body><div class="pass"><h2>XYZ COLLEGE</h2><p>Campus Visitor</p><img src="${qrUrl}" alt="QR code"><h3>${escapeHtml(selectedPass.Name || 'Visitor')}</h3><p class="id">${escapeHtml(selectedPass['Visitor ID'])}</p><p>Please scan when entering and exiting.</p></div><script>window.onload=()=>window.print();<\/script></body></html>`);
+        const displayName = selectedPass.Name || selectedPass['Full Name'] || selectedPass['Visitor Name'] || selectedPass.name || 'Visitor';
+        printWindow.document.write(`<html><head><title>Visitor Pass ${escapeHtml(selectedPass['Visitor ID'])}</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:32px;color:#0b2545}.pass{border:2px solid #0b2545;border-radius:16px;padding:24px;max-width:320px;margin:auto}img{width:240px;height:240px}.id{font-family:monospace;font-weight:bold}</style></head><body><div class="pass"><h2>XYZ COLLEGE</h2><p>${escapeHtml(displayName)}</p><img src="${qrUrl}" alt="QR code"><h3>${escapeHtml(displayName)}</h3><p class="id">${escapeHtml(selectedPass['Visitor ID'])}</p><p>Please scan when entering and exiting.</p></div><script>window.onload=()=>window.print();<\/script></body></html>`);
         printWindow.document.close();
       };
 
