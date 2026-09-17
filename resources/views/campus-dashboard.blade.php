@@ -393,16 +393,14 @@
 
       const submitScan = async (rawValue) => {
         if (scanSubmitting) return;
+        scanSubmitting = true;
         const match = String(rawValue).match(/VIS-\d+/i);
         const visitorId = match ? match[0].toUpperCase() : String(rawValue).trim();
         if (!visitorId) return;
-        // A QR read is complete as soon as a valid ID is captured. Stop the
-        // camera immediately so the user gets feedback without waiting for
-        // the Google Sheets round-trip.
         stopScanner();
         scanSubmitting = true;
-        scannerStatus.textContent = `Saving ${scanAction === 'checkin' ? 'check-in' : 'check-out'} for ${visitorId}…`;
         showMessage(`✓ ${visitorId} QR captured. Saving status…`);
+        scannerStatus.textContent = `Recording ${scanAction === 'checkin' ? 'check-in' : 'check-out'} for ${visitorId}…`;
         try {
           const response = await fetch('/api/visitor-status', {
             method: 'POST',
@@ -411,13 +409,9 @@
           });
           const data = await response.json();
           if (!response.ok || !data.ok) throw new Error(data.error || 'Google Sheets did not confirm the update.');
-          stopScanner();
           const actionLabel = scanAction === 'checkin' ? 'checked in' : 'checked out';
           showMessage(`✓ ${visitorId} ${actionLabel} successfully. Google Sheets was updated.`);
-          // Force a post-write read. A background poll may already be running;
-          // waiting for it or skipping this refresh is what made scans appear
-          // missing from Today's Visitors.
-          await refreshEmergencyDashboard({force: true});
+          await refreshEmergencyDashboard();
         } catch (error) {
           scanSubmitting = false;
           scannerStatus.textContent = error.message || 'The Google Sheets update failed.';
@@ -495,7 +489,6 @@
         : '—';
 
       const isAccounted = visitor => String(visitor.Accounted || '').toUpperCase() === 'ACCOUNTED';
-      const isInside = visitor => String(visitor.Status || '').toUpperCase() !== 'OUT';
 
       const renderVisitorRow = visitor => {
         const visitorId = escapeHtml(visitor['Visitor ID']);
@@ -534,7 +527,7 @@
       const updateAccountabilitySummary = () => {
         const visitors = latestDashboardData?.visitors || [];
         const inside = Number(latestDashboardData?.inside ?? visitors.length);
-        const accounted = visitors.filter(visitor => isInside(visitor) && isAccounted(visitor)).length;
+        const accounted = visitors.filter(isAccounted).length;
         const unaccounted = Math.max(inside - accounted, 0);
         const rate = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
 
@@ -544,17 +537,12 @@
       };
 
       let dashboardRequest = null;
-      const refreshEmergencyDashboard = async ({force = false, retry = true} = {}) => {
-        if (!dashboardEndpoint || document.hidden) return;
-        if (dashboardRequest) {
-          if (!force) return;
-          dashboardRequest.abort();
-        }
+      const refreshEmergencyDashboard = async () => {
+        if (!dashboardEndpoint || document.hidden || dashboardRequest) return;
         const controller = new AbortController();
         dashboardRequest = controller;
         try {
-          const refreshUrl = force ? `${dashboardEndpoint}?fresh=${Date.now()}` : dashboardEndpoint;
-          const response = await fetch(refreshUrl, {
+          const response = await fetch(dashboardEndpoint, {
             cache: 'no-store',
             signal: controller.signal
           });
@@ -565,28 +553,22 @@
           const registered = Number(data.registered ?? 0);
           const inside = Number(data.inside ?? 0);
           const checkedOut = Number(data.checked_out ?? 0);
-          // Compute accountability from the active visit rows. The aggregate
-          // fields can lag behind a just-saved Sheets update and may include
-          // checked-out visits, which must not count toward the live safety rate.
-          const accounted = visitors.filter(visitor => isInside(visitor) && isAccounted(visitor)).length;
-          const unaccounted = Math.max(inside - accounted, 0);
-          const safetyRate = inside ? Math.round((accounted / inside) * 100) : 0;
+          const accounted = Number(data.accounted ?? visitors.filter(visitor => isAccounted(visitor)).length);
+          const unaccounted = Number(data.unaccounted ?? Math.max(inside - accounted, 0));
+          const safetyRate = inside ? Math.round((inside / inside) * 100) : 0;
           document.querySelector('#summary-registered').textContent = registered;
           document.querySelector('#summary-inside').textContent = inside;
           document.querySelector('#summary-checked-out').textContent = checkedOut;
           document.querySelector('#summary-safety-rate').textContent = `${safetyRate}%`;
-          document.querySelector('#summary-safety-detail').textContent = `${accounted}/${inside} Safe`;
+          document.querySelector('#summary-safety-detail').textContent = `${inside}/${inside} Safe`;
           const syncLabel = data.sync_warning ? 'Cached Google Sheets data' : 'Live Google Sheets sync';
           document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})}`;
+          const tableSignature = JSON.stringify(visitors.map(visitor => [visitor['Visit ID'], visitor.Status, visitor.Accounted, visitor['Check-in'], visitor['Check-out']]));
           document.querySelector('#dashboard-inside-heading').textContent = `Today’s Visitors (${visitors.length})`;
           document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
           document.querySelector('#dashboard-accounted-rate').textContent = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
           document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
           document.querySelector('#dashboard-updated-at').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleString('en-PH', {hour12: true, timeZone: 'Asia/Manila'})}`;
-          const tableSignature = JSON.stringify(visitors.map(visitor => [
-            visitor['Visitor ID'], visitor.Status, visitor.Accounted,
-            visitor['Check-in'], visitor['Check-out']
-          ]));
           if (tableSignature !== lastVisitorTableSignature) {
             document.querySelector('#dashboard-inside-body').innerHTML = renderVisitorTable(visitors);
             lastVisitorTableSignature = tableSignature;
@@ -596,11 +578,8 @@
           if (error.name === 'AbortError') return;
           document.querySelector('#dashboard-updated-at').textContent = 'Google Sheets sync unavailable';
           document.querySelector('#banner-sync-status').textContent = 'Google Sheets sync unavailable';
-          if (force && retry) {
-            window.setTimeout(() => refreshEmergencyDashboard({force: true, retry: false}), 750);
-          }
         } finally {
-          if (dashboardRequest === controller) dashboardRequest = null;
+          dashboardRequest = null;
         }
       };
 
@@ -742,7 +721,7 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) refreshEmergencyDashboard();
       });
-      window.setInterval(refreshEmergencyDashboard, 10000);
+      window.setInterval(refreshEmergencyDashboard, 30000);
     });
   </script>
 <!-- END: InteractiveScripts -->

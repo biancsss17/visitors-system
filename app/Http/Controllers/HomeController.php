@@ -22,11 +22,10 @@ class HomeController extends Controller
         return 'Generated successfully';
     }
 
-    public function dashboard(Request $request)
+    public function dashboard()
     {
         $endpoint = config('services.google.dashboard_endpoint');
         $token = config('services.google.dashboard_token');
-        $fresh = $request->boolean('fresh');
 
         if (!$endpoint || !$token) {
             return response()->json(['error' => 'Google Sheets dashboard is not configured.'], 503);
@@ -34,7 +33,7 @@ class HomeController extends Controller
 
         $cachedPayload = Cache::get('google.dashboard.payload');
         $cachedAt = Cache::get('google.dashboard.fetched_at');
-        if (!$fresh && is_array($cachedPayload) && is_numeric($cachedAt) && (time() - (int) $cachedAt) < 5) {
+        if (is_array($cachedPayload) && is_numeric($cachedAt) && (time() - (int) $cachedAt) < 5) {
             return response()->json($cachedPayload)
                 ->header('Cache-Control', 'no-store, private');
         }
@@ -142,20 +141,6 @@ class HomeController extends Controller
             return response()->json($payload, $response->getStatusCode())
                 ->header('Cache-Control', 'no-store, private');
         } catch (\Throwable $exception) {
-            // The original pass rule uses the Visitor ID as the QR payload. Keep
-            // printing available immediately when a Sheets lookup is slow.
-            if ($data['action'] === 'lookup') {
-                $visitorId = strtoupper($data['visitor_id']);
-                return response()->json([
-                    'Visitor ID' => $visitorId,
-                    'Name' => 'Campus Visitor',
-                    'qr_value' => $visitorId,
-                    'qr_url' => 'https://quickchart.io/qr?size=240&text=' . rawurlencode($visitorId),
-                    'visit_history' => [],
-                    'offline' => true,
-                ])->header('Cache-Control', 'no-store, private');
-            }
-
             return response()->json(['error' => 'Google Sheets pass service is unavailable.'], 503);
         }
     }
