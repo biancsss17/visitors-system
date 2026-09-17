@@ -507,7 +507,7 @@
             <td class="px-3 py-2">${formatTime(visitor['Check-in'])}</td>
             <td class="px-3 py-2">${formatTime(visitor['Check-out'])}</td>
             <td class="px-3 py-2">
-              <select data-accountability-id="${visitorId}" class="rounded-md border-slate-300 py-1 text-xs font-bold ${colorClass}">
+              <select data-accountability-id="${visitorId}" ${checkedOut ? 'disabled' : ''} class="rounded-md border-slate-300 py-1 text-xs font-bold ${colorClass} ${checkedOut ? 'cursor-not-allowed opacity-60' : ''}">
                 <option value="UNACCOUNTED" ${selectedUnaccounted}>Unaccounted</option>
                 <option value="ACCOUNTED" ${selectedAccounted}>Accounted</option>
               </select>
