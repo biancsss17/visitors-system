@@ -397,6 +397,9 @@
         const match = String(rawValue).match(/VIS-\d+/i);
         const visitorId = match ? match[0].toUpperCase() : String(rawValue).trim();
         if (!visitorId) return;
+        stopScanner();
+        scanSubmitting = true;
+        showMessage(`✓ ${visitorId} QR captured. Saving status…`);
         scannerStatus.textContent = `Recording ${scanAction === 'checkin' ? 'check-in' : 'check-out'} for ${visitorId}…`;
         try {
           const response = await fetch('/api/visitor-status', {
@@ -406,7 +409,6 @@
           });
           const data = await response.json();
           if (!response.ok || !data.ok) throw new Error(data.error || 'Google Sheets did not confirm the update.');
-          stopScanner();
           const actionLabel = scanAction === 'checkin' ? 'checked in' : 'checked out';
           showMessage(`✓ ${visitorId} ${actionLabel} successfully. Google Sheets was updated.`);
           await refreshEmergencyDashboard();
