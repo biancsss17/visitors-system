@@ -625,7 +625,21 @@
       const passStatus = document.querySelector('#visitor-pass-status');
       const passPreview = document.querySelector('#visitor-pass-preview');
       const passIdInput = document.querySelector('#pass-visitor-id');
+      const passQr = document.querySelector('#visitor-pass-qr');
       let selectedPass = null;
+
+      // QuickChart is the primary QR source. Keep a second provider as an
+      // automatic fallback so a temporary image CDN failure never leaves a
+      // blank pass.
+      const setPassQr = (visitorId, primaryUrl) => {
+        if (!passQr) return;
+        const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(visitorId)}`;
+        passQr.dataset.qrValue = visitorId;
+        passQr.onerror = () => {
+          if (passQr.src !== fallbackUrl) passQr.src = fallbackUrl;
+        };
+        passQr.src = primaryUrl || fallbackUrl;
+      };
 
       const closePassModal = () => {
         passModal?.classList.add('hidden');
@@ -655,7 +669,7 @@
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || 'Visitor was not found.');
           selectedPass = data;
-          document.querySelector('#visitor-pass-qr').src = data.qr_url;
+          setPassQr(data['Visitor ID'], data.qr_url);
           document.querySelector('#visitor-pass-name').textContent = data.Name || 'Campus Visitor';
           document.querySelector('#visitor-pass-id').textContent = data['Visitor ID'];
           document.querySelector('#visitor-visit-history').innerHTML = (data.visit_history || []).map(visit =>

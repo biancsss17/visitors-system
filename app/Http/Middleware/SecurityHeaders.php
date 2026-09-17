@@ -24,7 +24,7 @@ class SecurityHeaders
             "frame-ancestors 'none'",
             "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: https://quickchart.io",
+            "img-src 'self' data: https://quickchart.io https://api.qrserver.com",
             "connect-src 'self'",
             "font-src 'self' data:",
         ]));
