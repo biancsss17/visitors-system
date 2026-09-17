@@ -2,6 +2,12 @@
 
 Laravel 13 starter application for a school visitor system. It is configured to work on shared hosting without Node.js, Vite, or npm dependencies. Tailwind CSS is loaded from its CDN in `resources/views/home.blade.php`.
 
+## Visitor data model
+
+Google Sheets uses separate `Visitors` and `Visit Logs` tabs. `Visitors` stores one profile per person; `Visit Logs` stores one row per visit, with its own check-in, check-out, status, accountability, and creation timestamp. The Apps Script `ensureDatabase()` migration creates these tabs and copies the existing `Visitor Database` rows the first time it runs. Subsequent check-ins append a new `VISIT-######` row, while checkout updates only the latest open visit. A visitor lookup response includes `visit_history` so the complete history can be displayed without changing the profile row.
+
+After updating `google-apps-script/Code.gs`, paste it into the bound Apps Script project and deploy a new web-app version. Run `setupDatabase()` once, then run `installTrigger()` once if the form-submit trigger is not already installed.
+
 ## Install from scratch
 
 Requirements: PHP 8.3+, Composer 2.x, and MySQL.

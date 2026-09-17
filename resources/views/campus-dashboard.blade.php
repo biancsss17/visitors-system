@@ -148,6 +148,10 @@
         <img id="visitor-pass-qr" class="mx-auto h-48 w-48 rounded-lg bg-white p-2" alt="Visitor QR code">
         <p id="visitor-pass-name" class="mt-3 text-sm font-black text-campus-navy"></p>
         <p id="visitor-pass-id" class="font-mono text-xs text-slate-500"></p>
+        <div class="mt-3 text-left">
+          <h3 class="text-xs font-black uppercase tracking-wider text-slate-700">Visit History</h3>
+          <div id="visitor-visit-history" class="mt-1 max-h-40 overflow-auto text-xs text-slate-600"></div>
+        </div>
         <div class="mt-4 grid grid-cols-2 gap-2">
           <button id="print-visitor-pass" class="rounded-lg bg-campus-navy px-3 py-2 text-xs font-bold text-white" type="button">Print Pass</button>
           <button id="email-visitor-pass" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white" type="button">Email Pass</button>
@@ -650,6 +654,9 @@
           document.querySelector('#visitor-pass-qr').src = data.qr_url;
           document.querySelector('#visitor-pass-name').textContent = data.Name || 'Campus Visitor';
           document.querySelector('#visitor-pass-id').textContent = data['Visitor ID'];
+          document.querySelector('#visitor-visit-history').innerHTML = (data.visit_history || []).map(visit =>
+            `<div class="border-b border-slate-200 py-1"><span class="font-mono">${escapeHtml(visit['Visit ID'])}</span> · ${escapeHtml(visit.Status)} · ${formatTime(visit['Check-in'])} – ${formatTime(visit['Check-out'])}</div>`
+          ).join('') || '<p>No visits recorded.</p>';
           passPreview.classList.remove('hidden');
           passStatus.textContent = 'QR code loaded from Visitor Database.';
         } catch (error) {
