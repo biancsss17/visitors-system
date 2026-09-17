@@ -488,6 +488,7 @@
         : '—';
 
       const isAccounted = visitor => String(visitor.Accounted || '').toUpperCase() === 'ACCOUNTED';
+      const isInside = visitor => String(visitor.Status || '').toUpperCase() !== 'OUT';
 
       const renderVisitorRow = visitor => {
         const visitorId = escapeHtml(visitor['Visitor ID']);
@@ -526,7 +527,7 @@
       const updateAccountabilitySummary = () => {
         const visitors = latestDashboardData?.visitors || [];
         const inside = Number(latestDashboardData?.inside ?? visitors.length);
-        const accounted = visitors.filter(isAccounted).length;
+        const accounted = visitors.filter(visitor => isInside(visitor) && isAccounted(visitor)).length;
         const unaccounted = Math.max(inside - accounted, 0);
         const rate = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
 
@@ -552,8 +553,11 @@
           const registered = Number(data.registered ?? 0);
           const inside = Number(data.inside ?? 0);
           const checkedOut = Number(data.checked_out ?? 0);
-          const accounted = Number(data.accounted ?? visitors.filter(visitor => isAccounted(visitor)).length);
-          const unaccounted = Number(data.unaccounted ?? Math.max(inside - accounted, 0));
+          // Compute accountability from the active visit rows. The aggregate
+          // fields can lag behind a just-saved Sheets update and may include
+          // checked-out visits, which must not count toward the live safety rate.
+          const accounted = visitors.filter(visitor => isInside(visitor) && isAccounted(visitor)).length;
+          const unaccounted = Math.max(inside - accounted, 0);
           const safetyRate = inside ? Math.round((accounted / inside) * 100) : 0;
           document.querySelector('#summary-registered').textContent = registered;
           document.querySelector('#summary-inside').textContent = inside;
