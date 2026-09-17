@@ -581,6 +581,8 @@
         if (!selector) return;
         const previousValue = selector.dataset.previousValue || 'UNACCOUNTED';
         selector.dataset.previousValue = selector.value;
+        selector.classList.toggle('text-emerald-700', selector.value === 'ACCOUNTED');
+        selector.classList.toggle('text-rose-700', selector.value !== 'ACCOUNTED');
         const visitor = latestDashboardData?.visitors?.find(item =>
           String(item['Visitor ID']) === selector.dataset.accountabilityId
         );
@@ -602,6 +604,8 @@
           refreshEmergencyDashboard();
         } catch (error) {
           selector.value = previousValue;
+          selector.classList.toggle('text-emerald-700', previousValue === 'ACCOUNTED');
+          selector.classList.toggle('text-rose-700', previousValue !== 'ACCOUNTED');
           if (visitor) {
             visitor.Accounted = previousValue;
             updateAccountabilitySummary();
