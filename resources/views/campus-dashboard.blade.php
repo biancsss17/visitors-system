@@ -710,7 +710,7 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) refreshEmergencyDashboard();
       });
-      window.setInterval(refreshEmergencyDashboard, 10000);
+      window.setInterval(refreshEmergencyDashboard, 30000);
     });
   </script>
 <!-- END: InteractiveScripts -->
