@@ -524,8 +524,6 @@
         const unaccounted = Math.max(inside - accounted, 0);
         const rate = inside ? `${Math.round((accounted / inside) * 100)}%` : '—%';
 
-        document.querySelector('#banner-accounted').textContent = `${accounted} / ${inside}`;
-        document.querySelector('#banner-unaccounted').textContent = unaccounted;
         document.querySelector('#dashboard-accounted').textContent = `${accounted} / ${inside}`;
         document.querySelector('#dashboard-accounted-rate').textContent = rate;
         document.querySelector('#dashboard-unaccounted').textContent = unaccounted;
@@ -556,9 +554,6 @@
           document.querySelector('#summary-checked-out').textContent = checkedOut;
           document.querySelector('#summary-safety-rate').textContent = `${safetyRate}%`;
           document.querySelector('#summary-safety-detail').textContent = `${inside}/${inside} Safe`;
-          document.querySelector('#banner-total-inside').textContent = inside;
-          document.querySelector('#banner-accounted').textContent = `${accounted} / ${inside}`;
-          document.querySelector('#banner-unaccounted').textContent = unaccounted;
           const syncLabel = data.sync_warning ? 'Cached Google Sheets data' : 'Live Google Sheets sync';
           document.querySelector('#banner-sync-status').textContent = `${syncLabel} • ${new Date(data.updated_at || Date.now()).toLocaleTimeString('en-PH', {hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'})}`;
           document.querySelector('#dashboard-inside-heading').textContent = `Today’s Visitors (${visitors.length})`;
