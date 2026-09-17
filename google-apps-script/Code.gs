@@ -131,7 +131,7 @@ function updateVisitorStatusFast(id, status, accounted) {
 }
 
 // Separate-sheet mode: Visitor Profile stores one row per person; Visit Logs stores every visit.
-const VISITOR_PROFILE_SHEET_NAME = 'Visitor Profile';
+const VISITOR_PROFILE_SHEET_NAME = VISITORS_SHEET_NAME;
 const SINGLE_SHEET_LOG_START_COL = 14;
 const SINGLE_SHEET_LOG_HEADERS = ['Visit ID','Visitor ID','Check-in','Check-out','Status','Accounted','Created At'];
 function ensureDatabase() {
