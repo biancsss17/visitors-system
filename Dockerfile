@@ -29,4 +29,8 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwx storage bootstrap/cache
 
-CMD ["sh", "-c", "php artisan storage:link --force || true; apache2-foreground"]
+EXPOSE 8080
+
+# Cloud Run supplies PORT at runtime. Keep Apache bound to that port so the
+# container works on Cloud Run as well as local/Render environments.
+CMD ["sh", "-c", "PORT=${PORT:-8080}; sed -ri -e \"s/^Listen 80/Listen ${PORT}/\" /etc/apache2/ports.conf; sed -ri -e \"s/:80>/:${PORT}>/g\" /etc/apache2/sites-available/000-default.conf; php artisan storage:link --force || true; apache2-foreground"]
